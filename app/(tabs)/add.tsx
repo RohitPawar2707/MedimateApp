@@ -161,23 +161,20 @@ export default function AddMedicine() {
             >
                 <ScrollView
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[styles.scrollContent, { flexGrow: 1, justifyContent: 'center' }]}
                     keyboardShouldPersistTaps="handled"
                 >
-                    <LinearGradient
-                        colors={[theme.primary, colorScheme === 'dark' ? '#1E1B4B' : '#4338CA']}
-                        style={styles.header}
-                    >
-                        <Animated.View entering={FadeInUp.duration(600)} style={styles.headerTop}>
-                            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                                <Ionicons name="arrow-back" size={24} color="#FFF" />
+                    <View style={styles.formContainer}>
+                        <Animated.View entering={FadeInDown.delay(200)} style={[styles.formCard, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
+                            {/* Close Button on Card */}
+                            <TouchableOpacity 
+                                style={styles.cardCloseBtn} 
+                                onPress={() => router.back()}
+                            >
+                                <Ionicons name="close" size={24} color={theme.textDim} />
                             </TouchableOpacity>
-                            <Text style={styles.headerTitle}>Add Medicine</Text>
-                            <View style={{ width: 44 }} />
-                        </Animated.View>
-                    </LinearGradient>
 
-                    <Animated.View entering={FadeInDown.delay(200)} style={[styles.formCard, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
+                            <Text style={[styles.cardTitle, { color: theme.text }]}>Add Medicine</Text>
 
                         {/* Medicine Name */}
                         <View style={styles.inputGroup}>
@@ -318,6 +315,7 @@ export default function AddMedicine() {
                             </LinearGradient>
                         </TouchableOpacity>
                     </Animated.View>
+                </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </View>
@@ -345,11 +343,31 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
     },
     headerTitle: { fontSize: 22, fontWeight: '900', color: '#FFF', letterSpacing: 0.5 },
+    formContainer: {
+        paddingVertical: 40,
+        paddingBottom: 100, // Extra space to clear the tab bar
+    },
     formCard: {
         marginHorizontal: 20,
-        marginTop: -55,
         borderRadius: 32,
         padding: 24,
+        paddingTop: 30, // Space for close button
+    },
+    cardCloseBtn: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        zIndex: 10,
+        width: 32,
+        height: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cardTitle: {
+        fontSize: 22,
+        fontWeight: '900',
+        marginBottom: 24,
+        textAlign: 'center',
     },
     inputGroup: { marginBottom: 20 },
     label: { fontSize: 14, fontWeight: '800', marginBottom: 10, marginLeft: 2 },

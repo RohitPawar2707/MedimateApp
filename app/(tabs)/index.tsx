@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { auth, db } from '../../firebaseConfig';
-import { collection, query, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, getDoc, updateDoc, where, orderBy, limit } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
@@ -21,6 +21,7 @@ export default function Home() {
     const [userName, setUserName] = useState('');
     const [takenCount, setTakenCount] = useState(0);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [nextAppointment, setNextAppointment] = useState<any>(null);
 
     useEffect(() => {
         const user = auth.currentUser;
@@ -66,8 +67,26 @@ export default function Home() {
         });
 
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+
+        // Fetch Next Appointment
+        const apptQ = query(
+            collection(db, 'users', user.uid, 'appointments'),
+            where('status', '==', 'scheduled'),
+            orderBy('date', 'asc'),
+            orderBy('time', 'asc'),
+            limit(1)
+        );
+        const unsubscribeAppt = onSnapshot(apptQ, (snapshot) => {
+            if (!snapshot.empty) {
+                setNextAppointment({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() });
+            } else {
+                setNextAppointment(null);
+            }
+        });
+
         return () => {
             unsubscribe();
+            unsubscribeAppt();
             clearInterval(timer);
         };
     }, []);
@@ -113,6 +132,11 @@ export default function Home() {
         if (h < 12) return 'Good Morning';
         if (h < 17) return 'Good Afternoon';
         return 'Good Evening';
+    };
+
+    const formatDateShort = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
     };
 
     return (
@@ -175,12 +199,76 @@ export default function Home() {
                     </Text>
                 </Animated.View>
 
-                {/* --- QUICK HISTORY LINK --- */}
-                <Animated.View entering={FadeInDown.delay(600)} style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Today's Doses</Text>
-                    <TouchableOpacity onPress={() => router.push('/history')} style={[styles.historyBtn, { backgroundColor: theme.input }]}>
-                        <Ionicons name="calendar-outline" size={16} color={theme.primary} />
-                        <Text style={[styles.historyBtnText, { color: theme.primary }]}>History</Text>
+                {/* --- BIG ADD MEDICINE BUTTON --- */}
+                <Animated.View entering={FadeInDown.delay(550)} style={styles.addMainContainer}>
+                    <TouchableOpacity 
+                        style={[styles.addCard, { backgroundColor: theme.primary }]}
+                        onPress={() => router.push('/add')}
+                        activeOpacity={0.9}
+                    >
+                        <LinearGradient
+                            colors={[theme.primary, theme.secondary]}
+                            style={styles.addGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                        >
+                            <View style={styles.addContent}>
+                                <View style={styles.addIconCircle}>
+                                    <Ionicons name="add" size={32} color={theme.primary} />
+                                </View>
+                                <View>
+                                    <Text style={styles.addTitle}>Add Medicine</Text>
+                                    <Text style={styles.addSub}>Schedule a new dose</Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={24} color="#FFF" style={{ opacity: 0.7 }} />
+                        </LinearGradient>
+                    </TouchableOpacity>
+                </Animated.View>
+
+                {/* --- NEXT APPOINTMENT SUMMARY --- */}
+                {nextAppointment && (
+                    <Animated.View entering={FadeInDown.delay(600)} style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Next Appointment</Text>
+                    </Animated.View>
+                )}
+                {nextAppointment && (
+                    <Animated.View entering={FadeInDown.delay(700)}>
+                        <TouchableOpacity 
+                            style={[styles.apptCard, { backgroundColor: theme.card, ...theme.cardShadow }]}
+                            onPress={() => router.push('/appointments')}
+                        >
+                            <LinearGradient
+                                colors={[theme.primary + '20', theme.secondary + '10']}
+                                style={styles.apptGradient}
+                            >
+                                <View style={styles.apptInfo}>
+                                    <View style={[styles.apptDateBox, { backgroundColor: theme.primary }]}>
+                                        <Text style={styles.apptDateText}>
+                                            {formatDateShort(nextAppointment.date)}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.apptDetails}>
+                                        <Text style={[styles.apptDrName, { color: theme.text }]} numberOfLines={1}>
+                                            Dr. {nextAppointment.doctorName}
+                                        </Text>
+                                        <Text style={[styles.apptTime, { color: theme.textDim }]}>
+                                            {nextAppointment.time} • {nextAppointment.hospitalName}
+                                        </Text>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={theme.textDim} />
+                                </View>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </Animated.View>
+                )}
+
+                {/* --- RECENT DOSES SECTION --- */}
+                <Animated.View entering={FadeInDown.delay(800)} style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Doses</Text>
+                    <TouchableOpacity onPress={() => router.push('/medicine-list')} style={[styles.historyBtn, { backgroundColor: theme.input }]}>
+                        <Ionicons name="list-outline" size={16} color={theme.primary} />
+                        <Text style={[styles.historyBtnText, { color: theme.primary }]}>View All</Text>
                     </TouchableOpacity>
                 </Animated.View>
 
@@ -196,7 +284,7 @@ export default function Home() {
                         <Text style={[styles.emptySub, { color: theme.textDim }]}>No medicines scheduled today.</Text>
                     </Animated.View>
                 ) : (
-                    medicines.map((med, index) => {
+                    medicines.slice(0, 3).map((med, index) => {
                         const isTaken = med.todayStatus === 'taken';
                         const isMissed = med.todayStatus === 'missed';
                         const isPending = !isTaken && !isMissed;
@@ -376,8 +464,89 @@ const styles = StyleSheet.create({
     actionButtons: { gap: 8 },
     takeBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     missBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
+    emptySub: { fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
     emptyState: { alignItems: 'center', marginTop: 50, paddingHorizontal: 40 },
     emptyIcon: { width: 110, height: 110, borderRadius: 55, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
     emptyTitle: { fontSize: 22, fontWeight: '900', marginBottom: 8 },
-    emptySub: { fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
+    addMainContainer: {
+        marginHorizontal: 24,
+        marginTop: 20,
+    },
+    addCard: {
+        borderRadius: 24,
+        overflow: 'hidden',
+        elevation: 8,
+        shadowColor: '#3B6CF6',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+    },
+    addGradient: {
+        padding: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    addContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    addIconCircle: {
+        width: 56,
+        height: 56,
+        borderRadius: 20,
+        backgroundColor: '#FFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addTitle: {
+        fontSize: 20,
+        fontWeight: '900',
+        color: '#FFF',
+    },
+    addSub: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.8)',
+        fontWeight: '600',
+    },
+    apptCard: {
+        marginHorizontal: 24,
+        borderRadius: 24,
+        overflow: 'hidden',
+        marginBottom: 10,
+    },
+    apptGradient: {
+        padding: 16,
+    },
+    apptInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    apptDateBox: {
+        width: 50,
+        height: 54,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    apptDateText: {
+        color: '#FFF',
+        fontSize: 13,
+        fontWeight: '900',
+        textAlign: 'center',
+    },
+    apptDetails: {
+        flex: 1,
+    },
+    apptDrName: {
+        fontSize: 17,
+        fontWeight: '800',
+        marginBottom: 2,
+    },
+    apptTime: {
+        fontSize: 13,
+        fontWeight: '600',
+    }
 });

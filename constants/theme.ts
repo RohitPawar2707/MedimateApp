@@ -5,11 +5,11 @@
 
 import { Platform } from 'react-native';
 
-const primaryColor = '#4F46E5'; // Deep Indigo
-const secondaryColor = '#06B6D4'; // Modern Cyan
-const accentColor = '#10B981'; // Success Green
-const warningColor = '#F59E0B'; // Alert Amber
-const errorColor = '#EF4444'; // Soft Red
+const primaryColor = '#3B6CF6'; // Primary Blue
+const secondaryColor = '#0EA5A0'; // Accent Teal
+const successColor = '#16A34A'; // Success Green
+const warningColor = '#F59E0B'; // Warning Amber
+const errorColor = '#DC2626'; // Error Red
 
 export const Colors = {
   light: {
@@ -26,7 +26,7 @@ export const Colors = {
     tabIconSelected: primaryColor,
     primary: primaryColor,
     secondary: secondaryColor,
-    success: accentColor,
+    success: successColor,
     warning: warningColor,
     error: errorColor,
     glass: 'rgba(255, 255, 255, 0.8)',
@@ -35,7 +35,7 @@ export const Colors = {
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: 0.1,
       shadowRadius: 15,
-      elevation: 10,
+      elevation: 5,
     }
   },
   dark: {
@@ -43,25 +43,25 @@ export const Colors = {
     textDim: '#94A3B8',
     background: '#0F172A', // Slate 900
     surface: '#1E293B', // Slate 800
-    card: '#1E293B',
+    card: '#1F2937', // User requested #1F2937
     border: '#334155',
     input: '#0F172A',
-    tint: secondaryColor,
+    tint: '#5B89F8', // Lighter blue for dark mode
     icon: '#94A3B8',
     tabIconDefault: '#475569',
-    tabIconSelected: secondaryColor,
-    primary: primaryColor,
-    secondary: secondaryColor,
-    success: accentColor,
-    warning: warningColor,
-    error: errorColor,
+    tabIconSelected: '#5B89F8',
+    primary: '#5B89F8',
+    secondary: '#2DD4BF', // User requested #2DD4BF
+    success: '#22C55E', // User requested #22C55E
+    warning: '#FBBF24', // User requested #FBBF24
+    error: '#EF4444', // User requested #EF4444
     glass: 'rgba(30, 41, 59, 0.8)',
     cardShadow: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 15 },
       shadowOpacity: 0.3,
       shadowRadius: 20,
-      elevation: 20,
+      elevation: 10,
     }
   },
 };
@@ -75,7 +75,7 @@ export const Gaps = {
 
 export const Radius = {
   sm: 8,
-  md: 12,
+  md: 16, // User requested 16px
   lg: 20,
   xl: 32,
   full: 999,

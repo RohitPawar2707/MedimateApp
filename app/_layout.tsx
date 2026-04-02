@@ -217,8 +217,11 @@ function RootLayoutContent() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="Signup" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="hardware" options={{ presentation: 'modal', title: 'Hardware Status' }} />
         <Stack.Screen name="reminder" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+        <Stack.Screen name="add-appointment" options={{ presentation: 'modal', title: 'Schedule Appointment' }} />
+        <Stack.Screen name="appointment-details" options={{ presentation: 'card', title: 'Appointment' }} />
+        <Stack.Screen name="voice-assistant" options={{ presentation: 'transparentModal', headerShown: false }} />
+        <Stack.Screen name="medicine-list" options={{ presentation: 'card', headerShown: false }} />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </NavThemeProvider>

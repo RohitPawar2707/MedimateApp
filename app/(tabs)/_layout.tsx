@@ -6,30 +6,6 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LinearGradient } from 'expo-linear-gradient';
 
-/**
- * Custom Centered Add Button
- */
-function CustomAddButton({ onPress, theme }: any) {
-  return (
-    <View style={styles.addButtonWrapper}>
-      <TouchableOpacity
-        style={[styles.addButtonContainer, { shadowColor: theme.primary }]}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={[theme.primary, theme.secondary]}
-          style={styles.addButtonGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name="add" size={42} color="#FFF" />
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
@@ -83,23 +59,24 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="appointments"
+        options={{
+          title: 'Appointments',
+          tabBarIcon: ({ color }) => <Ionicons size={24} name="medical-outline" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
         name="add"
         options={{
-          title: '',
-          tabBarButton: (props) => (
-            <CustomAddButton 
-                theme={theme}
-                onPress={() => router.push('/add')} 
-            />
-          ),
+          href: null,
         }}
       />
 
       <Tabs.Screen
         name="reports"
         options={{
-          title: 'Reports',
-          tabBarIcon: ({ color }) => <Ionicons size={24} name="analytics-outline" color={color} />,
+          href: null,
         }}
       />
 
@@ -123,31 +100,4 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  addButtonWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonContainer: {
-    top: -24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-        ios: {
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.4,
-            shadowRadius: 10,
-        },
-        android: {
-            elevation: 10,
-        }
-    })
-  },
-  addButtonGradient: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
 });
