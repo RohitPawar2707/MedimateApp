@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/context/LanguageContext';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
@@ -25,9 +26,10 @@ export default function VoiceAssistant() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
+    const { t, language: langCode } = useLanguage();
 
     const [isListening, setIsListening] = useState(false);
-    const [statusText, setStatusText] = useState('How can I help you today?');
+    const [statusText, setStatusText] = useState(t('voice.status.ready'));
     const [currentAction, setCurrentAction] = useState<string | null>(null);
 
     // Wave animations
@@ -59,28 +61,42 @@ export default function VoiceAssistant() {
     const handleAction = async (action: string) => {
         setCurrentAction(action);
         setIsListening(true);
-        const langCode = await AsyncStorage.getItem('ttsLanguage') || 'en-IN';
 
         if (action === 'read_reminders') {
-            setStatusText('Reading your upcoming reminders...');
-            const text = "You have one appointment scheduled with Doctor Sharma tomorrow at 10 AM. Don't forget to carry your reports.";
+            setStatusText(t('voice.status.thinking'));
+            const text = langCode === 'hi-IN' 
+                ? "आपके पास कल सुबह १० बजे डॉक्टर शर्मा के साथ एक अपॉइंटमेंट है। अपनी रिपोर्ट ले जाना न भूलें।"
+                : langCode === 'mr-IN'
+                ? "तुमची उद्या सकाळी १० वाजता डॉक्टर शर्मा यांच्यासोबत अपॉइंटमेंट आहे. तुमचे रिपोर्ट सोबत नेण्यास विसरू नका."
+                : "You have one appointment scheduled with Doctor Sharma tomorrow at 10 AM. Don't forget to carry your reports.";
+                
+            const voices = await Speech.getAvailableVoicesAsync();
+            const voice = voices.find(v => v.language.toLowerCase().includes(langCode.toLowerCase())) || 
+                          voices.find(v => v.language.startsWith(langCode.split('-')[0]));
+                          
             Speech.speak(text, { 
                 language: langCode,
+                voice: voice?.identifier,
                 onDone: () => {
                     setIsListening(false);
                     setCurrentAction(null);
-                    setStatusText('Done! Anything else?');
+                    setStatusText(t('voice.status.ready'));
                 }
             });
         } else if (action === 'confirm_appt') {
-            setStatusText('Confirming your appointment...');
-            const text = "Confirming your appointment for tomorrow. Done. I've sent a confirmation to your doctor.";
+            setStatusText(t('voice.status.thinking'));
+            const text = langCode === 'hi-IN'
+                ? "आपकी कल की अपॉइंटमेंट की पुष्टि हो गई है। हो गया। मैंने आपके डॉक्टर को पुष्टिकरण भेज दिया है।"
+                : langCode === 'mr-IN'
+                ? "तुमच्या उद्याच्या भेटीची पुष्टी झाली आहे. झाले. मी तुमच्या डॉक्टरांना पुष्टीकरण पाठवले आहे."
+                : "Confirming your appointment for tomorrow. Done. I've sent a confirmation to your doctor.";
+                
             Speech.speak(text, { 
                 language: langCode,
                 onDone: () => {
                     setIsListening(false);
                     setCurrentAction(null);
-                    setStatusText('Confirmed! You are all set.');
+                    setStatusText(t('voice.status.ready'));
                 }
             });
         }
@@ -121,9 +137,9 @@ export default function VoiceAssistant() {
                             <View style={[styles.actionIcon, { backgroundColor: theme.primary }]}>
                                 <Ionicons name="notifications" size={24} color="#FFF" />
                             </View>
-                            <Text style={styles.actionText}>Read Reminders</Text>
+                            <Text style={styles.actionText}>{t('voice.action.read')}</Text>
                         </TouchableOpacity>
-
+ 
                         <TouchableOpacity 
                             style={[styles.actionCard, { backgroundColor: 'rgba(255,255,255,0.1)' }]}
                             onPress={() => handleAction('confirm_appt')}
@@ -131,14 +147,14 @@ export default function VoiceAssistant() {
                             <View style={[styles.actionIcon, { backgroundColor: theme.secondary }]}>
                                 <Ionicons name="checkmark-done" size={24} color="#FFF" />
                             </View>
-                            <Text style={styles.actionText}>Confirm Appts</Text>
+                            <Text style={styles.actionText}>{t('voice.action.confirm')}</Text>
                         </TouchableOpacity>
                     </Animated.View>
                 )}
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.footerText}>SAY "CANCEL" TO EXIT</Text>
+                <Text style={styles.footerText}>{t('voice.footer')}</Text>
             </View>
         </View>
     );

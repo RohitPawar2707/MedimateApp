@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, RotateInUpLeft, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
@@ -33,7 +33,7 @@ export default function Reminder() {
     }));
 
     useEffect(() => {
-        // Start pulsing animation
+        // Pulsing animation
         pulseAnim.value = withRepeat(
             withSequence(
                 withTiming(1.15, { duration: 600 }),
@@ -42,6 +42,28 @@ export default function Reminder() {
             -1,
             true
         );
+
+        // Listen for remote updates (Real-time sync)
+        // If medicine is marked as taken from another screen/device, close this reminder automatically.
+        const user = auth.currentUser;
+        let unsubscribe = () => {};
+
+        if (user && medId) {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const medRef = doc(db, 'users', user.uid, 'medicines', medId as string);
+            
+            unsubscribe = onSnapshot(medRef, (snapshot: any) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    const status = data.history?.[todayStr]?.status || data.status;
+                    if (status === 'taken') {
+                        stopAlert();
+                        router.replace('/(tabs)');
+                    }
+                }
+            });
+        }
 
         const speakAlert = async () => {
             if (isSpeakingRef.current) return; // Prevent overlap
@@ -56,8 +78,13 @@ export default function Reminder() {
                 thingToSay = `लक्ष द्या! ${medName} घेण्याची वेळ झाली आहे। कृपया ते आता घ्या।`;
             }
 
+            const voices = await Speech.getAvailableVoicesAsync();
+            const voice = voices.find(v => v.language.toLowerCase().includes(langCode.toLowerCase())) || 
+                          voices.find(v => v.language.startsWith(langCode.split('-')[0]));
+
             Speech.speak(thingToSay, {
                 language: langCode,
+                voice: voice?.identifier,
                 rate: 0.85,
                 pitch: 1.0,
                 volume: 1.0,
@@ -75,8 +102,9 @@ export default function Reminder() {
 
         return () => {
             stopAlert();
+            unsubscribe();
         };
-    }, [medName]);
+    }, [medName, medId]);
 
     const stopAlert = () => {
         if (alertIntervalRef.current) {
@@ -103,15 +131,17 @@ export default function Reminder() {
             if (medSnap.exists()) {
                 const data = medSnap.data();
                 const history = data.history || {};
-                history[today] = { status: 'taken', timestamp: new Date().toISOString() };
+                const today = new Date();
+                const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                
+                history[todayStr] = { status: 'taken', timestamp: new Date().toISOString() };
                 await updateDoc(medRef, { history, status: 'taken' });
 
                 // Cancel scheduled notifications
-                if (data.notificationId) {
-                    await Notifications.cancelScheduledNotificationAsync(data.notificationId).catch(() => { });
-                }
-                if (data.preNotificationId) {
-                    await Notifications.cancelScheduledNotificationAsync(data.preNotificationId).catch(() => { });
+                // Cancel all related notifications
+                const cancelIds = [data.notificationId, data.preNotificationId, data.snoozeNotificationId].filter(Boolean);
+                for (const id of cancelIds) {
+                    await Notifications.cancelScheduledNotificationAsync(id).catch(() => { });
                 }
 
                 router.replace('/(tabs)');

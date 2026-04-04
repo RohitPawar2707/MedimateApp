@@ -11,6 +11,7 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { LanguageProvider } from '@/context/LanguageContext';
 import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
 import * as Device from 'expo-device';
@@ -132,10 +133,7 @@ function RootLayoutContent() {
             const user = auth.currentUser;
             if (user) {
                 const today = new Date();
-                const yyyy = today.getFullYear();
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const dd = String(today.getDate()).padStart(2, '0');
-                const todayStr = `${yyyy}-${mm}-${dd}`;
+                const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
                 try {
                   await updateDoc(doc(db, 'users', user.uid, 'medicines', data.medId), {
                       [`history.${todayStr}`]: { status: 'taken', timestamp: new Date().toISOString() },
@@ -232,7 +230,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <RootLayoutContent />
+        <LanguageProvider>
+          <RootLayoutContent />
+        </LanguageProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

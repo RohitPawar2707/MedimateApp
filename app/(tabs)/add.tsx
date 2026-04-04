@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +27,7 @@ import { auth, db } from '../../firebaseConfig';
 export default function AddMedicine() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
+    const { t } = useLanguage();
 
     const [name, setName] = useState('');
     const [notes, setNotes] = useState('');
@@ -86,8 +88,14 @@ export default function AddMedicine() {
                     categoryIdentifier: 'med_reminder',
                     priority: Notifications.AndroidNotificationPriority.MAX,
                     sticky: true,
+                    sound: true,
                 },
-                trigger: { type: 'date', date: trigger, channelId: 'medication-alarm' } as any,
+                trigger: { 
+                    type: 'date', 
+                    date: trigger, 
+                    channelId: 'medication-alarm',
+                    precise: true // Ensures exact timing on Android
+                } as any,
             });
         } catch (e) {
             console.log('Error scheduling notifications:', e);
@@ -166,7 +174,6 @@ export default function AddMedicine() {
                 >
                     <View style={styles.formContainer}>
                         <Animated.View entering={FadeInDown.delay(200)} style={[styles.formCard, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
-                            {/* Close Button on Card */}
                             <TouchableOpacity 
                                 style={styles.cardCloseBtn} 
                                 onPress={() => router.back()}
@@ -174,16 +181,15 @@ export default function AddMedicine() {
                                 <Ionicons name="close" size={24} color={theme.textDim} />
                             </TouchableOpacity>
 
-                            <Text style={[styles.cardTitle, { color: theme.text }]}>Add Medicine</Text>
+                            <Text style={[styles.cardTitle, { color: theme.text }]}>{t('add.title')}</Text>
 
-                        {/* Medicine Name */}
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.text }]}>Medicine Name *</Text>
+                            <Text style={[styles.label, { color: theme.text }]}>{t('add.label.name')}</Text>
                             <View style={[styles.inputWrapper, { backgroundColor: theme.input, borderColor: theme.border }]}>
                                 <Ionicons name="medkit-outline" size={20} color={theme.primary} style={styles.inputIcon} />
                                 <TextInput
                                     style={[styles.input, { color: theme.text }]}
-                                    placeholder="e.g. Vitamin D3, Paracetamol"
+                                    placeholder={t('add.placeholder.name')}
                                     placeholderTextColor={theme.textDim}
                                     value={name}
                                     onChangeText={setName}
@@ -195,9 +201,8 @@ export default function AddMedicine() {
                             </View>
                         </View>
 
-                        {/* Schedule Time */}
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.text }]}>Schedule Time</Text>
+                            <Text style={[styles.label, { color: theme.text }]}>{t('add.label.time')}</Text>
                             <TouchableOpacity
                                 style={[styles.inputWrapper, styles.timeRow, { backgroundColor: theme.input, borderColor: theme.border }]}
                                 onPress={() => setShowTimePicker(true)}
@@ -216,6 +221,7 @@ export default function AddMedicine() {
                                 mode="time"
                                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                 is24Hour={false}
+                                minimumDate={new Date()}
                                 onChange={(event, date) => {
                                     setShowTimePicker(false);
                                     if (date) setTime(date);
@@ -223,9 +229,8 @@ export default function AddMedicine() {
                             />
                         )}
 
-                        {/* Duration */}
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.text }]}>Duration</Text>
+                            <Text style={[styles.label, { color: theme.text }]}>{t('add.label.duration')}</Text>
                             <View style={styles.durationTabs}>
                                 {(['today', 'tomorrow', 'custom'] as const).map((opt) => (
                                     <TouchableOpacity
@@ -240,7 +245,7 @@ export default function AddMedicine() {
                                             styles.tabText,
                                             { color: durationOption === opt ? '#FFF' : theme.textDim },
                                         ]}>
-                                            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                                            {opt === 'today' ? t('add.duration.today') : opt === 'tomorrow' ? t('add.duration.tomorrow') : t('add.duration.custom')}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
@@ -250,7 +255,7 @@ export default function AddMedicine() {
                         {durationOption === 'custom' && (
                             <View style={styles.customDateRow}>
                                 <View style={styles.dateCol}>
-                                    <Text style={[styles.subLabel, { color: theme.textDim }]}>Start Date</Text>
+                                    <Text style={[styles.subLabel, { color: theme.textDim }]}>{t('add.label.start')}</Text>
                                     <TouchableOpacity
                                         style={[styles.smallInput, { backgroundColor: theme.input, borderColor: theme.border }]}
                                         onPress={() => setShowStartDatePicker(true)}
@@ -260,7 +265,7 @@ export default function AddMedicine() {
                                     </TouchableOpacity>
                                 </View>
                                 <View style={styles.dateCol}>
-                                    <Text style={[styles.subLabel, { color: theme.textDim }]}>End Date</Text>
+                                    <Text style={[styles.subLabel, { color: theme.textDim }]}>{t('add.label.end')}</Text>
                                     <TouchableOpacity
                                         style={[styles.smallInput, { backgroundColor: theme.input, borderColor: theme.border }]}
                                         onPress={() => setShowEndDatePicker(true)}
@@ -273,20 +278,19 @@ export default function AddMedicine() {
                         )}
 
                         {showStartDatePicker && (
-                            <DateTimePicker value={startDate} mode="date" onChange={(e, d) => { setShowStartDatePicker(false); if (d) setStartDate(d); }} />
+                            <DateTimePicker value={startDate} mode="date" minimumDate={new Date()} onChange={(e, d) => { setShowStartDatePicker(false); if (d) setStartDate(d); }} />
                         )}
                         {showEndDatePicker && (
-                            <DateTimePicker value={endDate} mode="date" onChange={(e, d) => { setShowEndDatePicker(false); if (d) setEndDate(d); }} />
+                            <DateTimePicker value={endDate} mode="date" minimumDate={startDate} onChange={(e, d) => { setShowEndDatePicker(false); if (d) setEndDate(d); }} />
                         )}
 
-                        {/* Notes */}
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.text }]}>Notes (Optional)</Text>
+                            <Text style={[styles.label, { color: theme.text }]}>{t('add.label.notes')}</Text>
                             <View style={[styles.inputWrapper, styles.notesWrapper, { backgroundColor: theme.input, borderColor: theme.border }]}>
                                 <TextInput
                                     ref={notesRef}
                                     style={[styles.input, styles.notesInput, { color: theme.text }]}
-                                    placeholder="e.g. Take after food, with water..."
+                                    placeholder={t('add.placeholder.notes')}
                                     placeholderTextColor={theme.textDim}
                                     multiline
                                     numberOfLines={3}
@@ -298,7 +302,6 @@ export default function AddMedicine() {
                             </View>
                         </View>
 
-                        {/* Save Button */}
                         <TouchableOpacity style={styles.saveContainer} onPress={handleSave} disabled={loading}>
                             <LinearGradient
                                 colors={[theme.primary, theme.secondary]}
@@ -309,7 +312,7 @@ export default function AddMedicine() {
                                 {loading ? <ActivityIndicator color="#FFF" size="large" /> : (
                                     <>
                                         <Ionicons name="save-outline" size={22} color="#FFF" />
-                                        <Text style={styles.saveBtnText}>SAVE MEDICINE</Text>
+                                        <Text style={styles.saveBtnText}>{t('add.btn.save')}</Text>
                                     </>
                                 )}
                             </LinearGradient>

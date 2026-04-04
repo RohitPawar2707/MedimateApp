@@ -9,12 +9,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/context/LanguageContext';
 
 const { width } = Dimensions.get('window');
 
 export default function Home() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
+    const { t } = useLanguage();
 
     const [medicines, setMedicines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,6 +24,7 @@ export default function Home() {
     const [takenCount, setTakenCount] = useState(0);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [nextAppointment, setNextAppointment] = useState<any>(null);
+    const [nagMed, setNagMed] = useState<any>(null);
 
     useEffect(() => {
         const user = auth.currentUser;
@@ -45,8 +48,7 @@ export default function Home() {
         const q = query(collection(db, 'users', user.uid, 'medicines'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayStr = today.toISOString().split('T')[0];
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
             const meds: any[] = [];
             let taken = 0;
@@ -63,6 +65,15 @@ export default function Home() {
             meds.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
             setMedicines(meds);
             setTakenCount(taken);
+            
+            // Sync nagMed with remote data
+            setNagMed((currentNag: any) => {
+                if (!currentNag) return null;
+                const updatedMed = meds.find(m => m.id === currentNag.id);
+                if (updatedMed?.todayStatus === 'taken') return null;
+                return currentNag;
+            });
+
             setLoading(false);
         });
 
@@ -84,9 +95,19 @@ export default function Home() {
             }
         });
 
+        // Listen for incoming notifications to trigger the Nag Banner for snoozed meds
+        const notificationSubscription = Notifications.addNotificationReceivedListener(notification => {
+            const data = notification.request.content.data as any;
+            if (data && data.isNag === 'true') {
+                const med = medicines.find(m => m.id === data.medId);
+                if (med) setNagMed(med);
+            }
+        });
+
         return () => {
             unsubscribe();
             unsubscribeAppt();
+            notificationSubscription.remove();
             clearInterval(timer);
         };
     }, []);
@@ -94,7 +115,8 @@ export default function Home() {
     const markStatus = async (medId: string, status: 'taken' | 'missed') => {
         const user = auth.currentUser;
         if (!user) return;
-        const todayStr = new Date().toISOString().split('T')[0];
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
         try {
             Vibration.cancel();
@@ -110,18 +132,51 @@ export default function Home() {
                 history[todayStr] = { status, timestamp: new Date().toISOString() };
                 await updateDoc(medRef, { history, status });
 
-                if (status === 'taken') {
-                    if (data.notificationId) {
-                        await Notifications.cancelScheduledNotificationAsync(data.notificationId).catch(() => {});
-                    }
-                    if (data.preNotificationId) {
-                        await Notifications.cancelScheduledNotificationAsync(data.preNotificationId).catch(() => {});
-                    }
+                 if (status === 'taken') {
+                    // Cancel all scheduled notifications for this medicine to ensure no delays or re-triggers
+                    try {
+                        const cancelIds = [
+                            data.notificationId, 
+                            data.preNotificationId, 
+                            data.snoozeNotificationId
+                        ].filter(Boolean);
+                        
+                        for (const id of cancelIds) {
+                            await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+                        }
+                    } catch (e) {}
                 }
             }
         } catch (error: any) {
             console.log('Error updating status:', error);
         }
+ 
+        if (nagMed?.id === medId) {
+            setNagMed(null);
+        }
+    };
+ 
+    const handleSnooze = async (med: any) => {
+        setMedicines(prev => prev.map(m => m.id === med.id ? { ...m, isSnoozed: true } : m));
+        
+        // Use a high-priority OS notification instead of a timer for exact timing
+        const trigger = new Date();
+        trigger.setMinutes(trigger.getMinutes() + 5); 
+        // Note: For testing you can use 10 seconds. In production we use 5 minutes.
+        
+        const snoozeId = await Notifications.scheduleNotificationAsync({
+            content: {
+                title: 'Medicine Reminder! ⏳',
+                body: t('home.nag.message').replace('{name}', med.name),
+                data: { medId: med.id, isNag: 'true', medName: med.name },
+                priority: Notifications.AndroidNotificationPriority.MAX,
+            },
+            trigger: { type: 'date', date: trigger, channelId: 'medication-alarm' } as any,
+        });
+
+        // Store snooze ID locally or in database to cancel it later if needed
+        const medRef = doc(db, 'users', auth.currentUser!.uid, 'medicines', med.id);
+        await updateDoc(medRef, { snoozeNotificationId: snoozeId });
     };
 
     const progressValue = medicines.length > 0 ? takenCount / medicines.length : 0;
@@ -129,9 +184,9 @@ export default function Home() {
 
     const getGreeting = () => {
         const h = currentTime.getHours();
-        if (h < 12) return 'Good Morning';
-        if (h < 17) return 'Good Afternoon';
-        return 'Good Evening';
+        if (h < 12) return t('home.greeting.morning');
+        if (h < 17) return t('home.greeting.afternoon');
+        return t('home.greeting.evening');
     };
 
     const formatDateShort = (dateStr: string) => {
@@ -142,6 +197,29 @@ export default function Home() {
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            
+            {/* NAG BANNER */}
+            {nagMed && (
+                <Animated.View entering={FadeInUp.duration(600)} style={styles.nagBanner}>
+                    <LinearGradient
+                        colors={[theme.error, '#991B1B']}
+                        style={styles.nagGradient}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    >
+                        <Ionicons name="alert-circle" size={24} color="#FFF" />
+                        <Text style={styles.nagText}>
+                            {t('home.nag.message').replace('{name}', nagMed.name)}
+                        </Text>
+                        <TouchableOpacity 
+                            style={styles.nagTakenBtn}
+                            onPress={() => markStatus(nagMed.id, 'taken')}
+                        >
+                            <Text style={styles.nagTakenText}>{t('home.action.taken')}</Text>
+                        </TouchableOpacity>
+                    </LinearGradient>
+                </Animated.View>
+            )}
+ 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
                 {/* --- HEADER --- */}
@@ -172,103 +250,17 @@ export default function Home() {
                         </Text>
                     </Animated.View>
                 </LinearGradient>
+ 
 
-                {/* --- ADHERENCE CARD --- */}
-                <Animated.View entering={FadeInDown.delay(500).duration(800)} style={[styles.statsCard, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
-                    <View style={styles.statsRow}>
-                        <View style={styles.statItem}>
-                            <Text style={[styles.statNumber, { color: theme.success }]}>{takenCount}</Text>
-                            <Text style={[styles.statLabel, { color: theme.textDim }]}>Taken</Text>
-                        </View>
-                        <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-                        <View style={styles.statItem}>
-                            <Text style={[styles.statNumber, { color: pendingCount > 0 ? theme.error : theme.textDim }]}>{pendingCount}</Text>
-                            <Text style={[styles.statLabel, { color: theme.textDim }]}>Pending</Text>
-                        </View>
-                        <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-                        <View style={styles.statItem}>
-                            <Text style={[styles.statNumber, { color: theme.text }]}>{medicines.length}</Text>
-                            <Text style={[styles.statLabel, { color: theme.textDim }]}>Total</Text>
-                        </View>
-                    </View>
-                    <View style={[styles.progressBarBase, { backgroundColor: theme.input }]}>
-                        <Animated.View style={[styles.progressBarFill, { width: `${progressValue * 100}%`, backgroundColor: progressValue === 1 ? theme.success : theme.primary }]} />
-                    </View>
-                    <Text style={[styles.progressLabel, { color: theme.textDim }]}>
-                        {Math.round(progressValue * 100)}% daily adherence
-                    </Text>
-                </Animated.View>
 
-                {/* --- BIG ADD MEDICINE BUTTON --- */}
-                <Animated.View entering={FadeInDown.delay(550)} style={styles.addMainContainer}>
-                    <TouchableOpacity 
-                        style={[styles.addCard, { backgroundColor: theme.primary }]}
-                        onPress={() => router.push('/add')}
-                        activeOpacity={0.9}
-                    >
-                        <LinearGradient
-                            colors={[theme.primary, theme.secondary]}
-                            style={styles.addGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                        >
-                            <View style={styles.addContent}>
-                                <View style={styles.addIconCircle}>
-                                    <Ionicons name="add" size={32} color={theme.primary} />
-                                </View>
-                                <View>
-                                    <Text style={styles.addTitle}>Add Medicine</Text>
-                                    <Text style={styles.addSub}>Schedule a new dose</Text>
-                                </View>
-                            </View>
-                            <Ionicons name="chevron-forward" size={24} color="#FFF" style={{ opacity: 0.7 }} />
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </Animated.View>
 
-                {/* --- NEXT APPOINTMENT SUMMARY --- */}
-                {nextAppointment && (
-                    <Animated.View entering={FadeInDown.delay(600)} style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Next Appointment</Text>
-                    </Animated.View>
-                )}
-                {nextAppointment && (
-                    <Animated.View entering={FadeInDown.delay(700)}>
-                        <TouchableOpacity 
-                            style={[styles.apptCard, { backgroundColor: theme.card, ...theme.cardShadow }]}
-                            onPress={() => router.push('/appointments')}
-                        >
-                            <LinearGradient
-                                colors={[theme.primary + '20', theme.secondary + '10']}
-                                style={styles.apptGradient}
-                            >
-                                <View style={styles.apptInfo}>
-                                    <View style={[styles.apptDateBox, { backgroundColor: theme.primary }]}>
-                                        <Text style={styles.apptDateText}>
-                                            {formatDateShort(nextAppointment.date)}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.apptDetails}>
-                                        <Text style={[styles.apptDrName, { color: theme.text }]} numberOfLines={1}>
-                                            Dr. {nextAppointment.doctorName}
-                                        </Text>
-                                        <Text style={[styles.apptTime, { color: theme.textDim }]}>
-                                            {nextAppointment.time} • {nextAppointment.hospitalName}
-                                        </Text>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={20} color={theme.textDim} />
-                                </View>
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    </Animated.View>
-                )}
 
                 {/* --- RECENT DOSES SECTION --- */}
                 <Animated.View entering={FadeInDown.delay(800)} style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Doses</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.recent_doses')}</Text>
                     <TouchableOpacity onPress={() => router.push('/medicine-list')} style={[styles.historyBtn, { backgroundColor: theme.input }]}>
                         <Ionicons name="list-outline" size={16} color={theme.primary} />
-                        <Text style={[styles.historyBtnText, { color: theme.primary }]}>View All</Text>
+                        <Text style={[styles.historyBtnText, { color: theme.primary }]}>{t('home.view_all')}</Text>
                     </TouchableOpacity>
                 </Animated.View>
 
@@ -280,11 +272,11 @@ export default function Home() {
                         <View style={[styles.emptyIcon, { backgroundColor: theme.input }]}>
                             <Ionicons name="medical-outline" size={60} color={theme.border} />
                         </View>
-                        <Text style={[styles.emptyTitle, { color: theme.text }]}>All Clear!</Text>
-                        <Text style={[styles.emptySub, { color: theme.textDim }]}>No medicines scheduled today.</Text>
+                        <Text style={[styles.emptyTitle, { color: theme.text }]}>{t('home.empty_title')}</Text>
+                        <Text style={[styles.emptySub, { color: theme.textDim }]}>{t('home.empty_sub')}</Text>
                     </Animated.View>
                 ) : (
-                    medicines.slice(0, 3).map((med, index) => {
+                    medicines.map((med, index) => {
                         const isTaken = med.todayStatus === 'taken';
                         const isMissed = med.todayStatus === 'missed';
                         const isPending = !isTaken && !isMissed;
@@ -331,12 +323,12 @@ export default function Home() {
                                     {isTaken ? (
                                         <View style={[styles.statusChip, { backgroundColor: 'rgba(16,185,129,0.12)' }]}>
                                             <Ionicons name="checkmark-circle" size={28} color={theme.success} />
-                                            <Text style={[styles.statusChipText, { color: theme.success }]}>Taken</Text>
+                                            <Text style={[styles.statusChipText, { color: theme.success }]}>{t('home.status.taken')}</Text>
                                         </View>
                                     ) : isMissed ? (
                                         <View style={[styles.statusChip, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
                                             <Ionicons name="close-circle" size={28} color={theme.error} />
-                                            <Text style={[styles.statusChipText, { color: theme.error }]}>Missed</Text>
+                                            <Text style={[styles.statusChipText, { color: theme.error }]}>{t('home.status.missed')}</Text>
                                         </View>
                                     ) : (
                                         <View style={styles.actionButtons}>
@@ -346,6 +338,21 @@ export default function Home() {
                                             >
                                                 <Ionicons name="checkmark" size={20} color="#FFF" />
                                             </TouchableOpacity>
+                                            
+                                            {med.isSnoozed ? (
+                                                <View style={[styles.snoozedChip, { backgroundColor: theme.input }]}>
+                                                    <ActivityIndicator size="small" color={theme.primary} />
+                                                </View>
+                                            ) : (
+                                                <TouchableOpacity
+                                                    style={[styles.snoozeBtn, { borderColor: theme.primary }]}
+                                                    onPress={() => handleSnooze(med)}
+                                                >
+                                                    <Ionicons name="time-outline" size={18} color={theme.primary} />
+                                                    <Text style={styles.snoozeBtnText}>{t('home.action.snooze')}</Text>
+                                                </TouchableOpacity>
+                                            )}
+ 
                                             <TouchableOpacity
                                                 style={[styles.missBtn, { borderColor: theme.error }]}
                                                 onPress={() => markStatus(med.id, 'missed')}
@@ -360,6 +367,22 @@ export default function Home() {
                     })
                 )}
             </ScrollView>
+ 
+            {/* COMPACT EXTENDED FAB */}
+            <TouchableOpacity 
+                style={[styles.efab, { ...theme.cardShadow }]}
+                onPress={() => router.push('/add')}
+                activeOpacity={0.8}
+            >
+                <LinearGradient
+                    colors={[theme.primary, theme.secondary]}
+                    style={styles.efabGradient}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                >
+                    <Ionicons name="add" size={24} color="#FFF" />
+                    <Text style={styles.efabText}>{t('home.add_medicine')}</Text>
+                </LinearGradient>
+            </TouchableOpacity>
         </View>
     );
 }
@@ -461,9 +484,86 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     statusChipText: { fontSize: 11, fontWeight: '900' },
-    actionButtons: { gap: 8 },
-    takeBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    missBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
+    actionButtons: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+    takeBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    snoozeBtn: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        borderWidth: 1.5, 
+        paddingHorizontal: 10, 
+        height: 44, 
+        borderRadius: 12,
+        gap: 4,
+    },
+    snoozeBtnText: { fontSize: 13, fontWeight: '800' },
+    snoozedChip: { 
+        width: 44, 
+        height: 44, 
+        borderRadius: 12, 
+        justifyContent: 'center', 
+        alignItems: 'center',
+    },
+    missBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
+    nagBanner: {
+        position: 'absolute',
+        top: 60,
+        left: 20,
+        right: 20,
+        zIndex: 100,
+        borderRadius: 16,
+        overflow: 'hidden',
+        elevation: 10,
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    nagGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        gap: 12,
+    },
+    nagText: {
+        flex: 1,
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: '700',
+        lineHeight: 20,
+    },
+    nagTakenBtn: {
+        backgroundColor: '#FFF',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 12,
+    },
+    nagTakenText: {
+        color: '#991B1B',
+        fontSize: 13,
+        fontWeight: '900',
+    },
+    efab: {
+        position: 'absolute',
+        bottom: 100,
+        right: 20,
+        borderRadius: 20,
+        overflow: 'hidden',
+        elevation: 8,
+        zIndex: 999,
+    },
+    efabGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 8,
+    },
+    efabText: {
+        color: '#FFF',
+        fontSize: 14,
+        fontWeight: '900',
+        letterSpacing: 0.3,
+    },
     emptySub: { fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
     emptyState: { alignItems: 'center', marginTop: 50, paddingHorizontal: 40 },
     emptyIcon: { width: 110, height: 110, borderRadius: 55, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },

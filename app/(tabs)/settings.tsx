@@ -1,8 +1,6 @@
-import { Colors, Radius, Gaps } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Notifications from 'expo-notifications';
 import * as Speech from 'expo-speech';
 import { signOut } from 'firebase/auth';
 import { router } from 'expo-router';
@@ -11,18 +9,19 @@ import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View, StatusBar, Platform } from 'react-native';
 import { auth, db } from '../../firebaseConfig';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 export default function Settings() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
+    const { t, setLanguage, language: ttsLanguage } = useLanguage();
     const { theme: themeMode, setTheme } = useTheme();
     
     const [userName, setUserName] = useState('User');
     const [userEmail, setUserEmail] = useState('');
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [ttsLanguage, setTtsLanguage] = useState('en-IN');
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -40,23 +39,25 @@ export default function Settings() {
             }
         };
         fetchUser();
-
-        const loadLang = async () => {
-            const lang = await AsyncStorage.getItem('ttsLanguage');
-            if (lang) setTtsLanguage(lang);
-        };
-        loadLang();
     }, []);
 
     const handleLanguageSelect = async (langCode: string) => {
-        setTtsLanguage(langCode);
-        await AsyncStorage.setItem('ttsLanguage', langCode);
+        await setLanguage(langCode as any);
         
-        let text = "Language updated. Reminders will now be announced in this language.";
-        if (langCode === 'hi-IN') text = "भाषा सफलतापूर्वक अपडेट हो गई";
-        else if (langCode === 'mr-IN') text = "भाषा यशस्वीपणे अपडेट केली";
-        
-        Speech.speak(text, { language: langCode });
+        try {
+            const voices = await Speech.getAvailableVoicesAsync();
+            const selectedVoice = voices.find(v => v.language.toLowerCase().includes(langCode.toLowerCase())) || 
+                                 voices.find(v => v.language.startsWith(langCode.split('-')[0]));
+            
+            const feedback = t('settings.lang_updated');
+            Speech.speak(feedback, { 
+                language: langCode,
+                voice: selectedVoice?.identifier 
+            });
+        } catch (e) {
+            // Fallback if voice selection fails
+            Speech.speak(t('settings.lang_updated'), { language: langCode });
+        }
     };
 
     const handleThemeChange = async (mode: 'light' | 'dark' | 'system') => {
@@ -64,10 +65,10 @@ export default function Settings() {
     };
 
     const handleLogout = async () => {
-        Alert.alert('Logout', 'Are you sure you want to sign out?', [
-            { text: 'Cancel', style: 'cancel' },
+        Alert.alert(t('settings.logout'), t('settings.logout_confirm'), [
+            { text: t('settings.cancel'), style: 'cancel' },
             { 
-                text: 'Sign Out', 
+                text: t('settings.logout'), 
                 style: 'destructive',
                 onPress: async () => {
                     await signOut(auth);
@@ -113,13 +114,13 @@ export default function Settings() {
                 <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.content}>
                     
                     {/* Theme Preference */}
-                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>APPEARANCE</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>{t('settings.appearance')}</Text>
                     <View style={[styles.card, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
                         <View style={styles.themeToggleContainer}>
                             {[
-                                { id: 'light', icon: 'sunny-outline', label: 'Light' },
-                                { id: 'dark', icon: 'moon-outline', label: 'Dark' },
-                                { id: 'system', icon: 'desktop-outline', label: 'System' }
+                                { id: 'light', icon: 'sunny-outline', label: t('settings.theme.light') },
+                                { id: 'dark', icon: 'moon-outline', label: t('settings.theme.dark') },
+                                { id: 'system', icon: 'desktop-outline', label: t('settings.theme.system') }
                             ].map((mode) => (
                                 <TouchableOpacity 
                                     key={mode.id}
@@ -144,9 +145,9 @@ export default function Settings() {
                     </View>
 
                     {/* Notification Settings */}
-                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>NOTIFICATIONS</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>{t('settings.notifications')}</Text>
                     <View style={[styles.card, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
-                        <SettingRow icon="notifications-outline" label="Push Notifications" last>
+                        <SettingRow icon="notifications-outline" label={t('settings.notif_label')} last>
                             <Switch
                                 value={notificationsEnabled}
                                 onValueChange={setNotificationsEnabled}
@@ -157,7 +158,7 @@ export default function Settings() {
                     </View>
 
                     {/* Language Settings */}
-                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>VOICE LANGUAGE</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>{t('settings.language')}</Text>
                     <View style={[styles.card, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
                         {[
                             { code: 'en-IN', label: 'English (India)', flag: '🇮🇳' },
@@ -181,20 +182,20 @@ export default function Settings() {
                     </View>
 
                     {/* Account Actions */}
-                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>ACCOUNT</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.textDim }]}>{t('settings.account')}</Text>
                     <View style={[styles.card, { backgroundColor: theme.surface, ...theme.cardShadow }]}>
                         <TouchableOpacity style={styles.settingRow} onPress={handleLogout}>
                             <View style={styles.settingLeft}>
                                 <View style={[styles.iconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
                                     <Ionicons name="log-out-outline" size={22} color={theme.error} />
                                 </View>
-                                <Text style={[styles.settingLabel, { color: theme.error }]}>Sign Out</Text>
+                                <Text style={[styles.settingLabel, { color: theme.error }]}>{t('settings.logout')}</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={20} color={theme.textDim} />
                         </TouchableOpacity>
                     </View>
-
-                    <Text style={[styles.versionText, { color: theme.textDim }]}>Medimate Premium v1.5.0</Text>
+ 
+                    <Text style={[styles.versionText, { color: theme.textDim }]}>{t('settings.version')}</Text>
                 </Animated.View>
             </ScrollView>
         </View>

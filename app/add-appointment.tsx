@@ -9,11 +9,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/context/LanguageContext';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export default function AddAppointment() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
+    const { t } = useLanguage();
 
     const [loading, setLoading] = useState(false);
     const [patientName, setPatientName] = useState('');
@@ -165,27 +167,27 @@ export default function AddAppointment() {
             >
                 <Animated.View entering={FadeInDown.duration(800)}>
                     {/* Patient Info */}
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Patient Information</Text>
-                    <InputField label="Patient Name" value={patientName} onChangeText={setPatientName} placeholder="Full Name" icon="person-outline" />
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('appt.form.patient_info')}</Text>
+                    <InputField label={t('appt.form.patient_name')} value={patientName} onChangeText={setPatientName} placeholder="Full Name" icon="person-outline" />
                     <View style={styles.row}>
                         <View style={{ flex: 1 }}>
-                            <InputField label="Age" value={patientAge} onChangeText={setPatientAge} placeholder="Years" icon="calendar-outline" keyboardType="numeric" />
+                            <InputField label={t('appt.form.age')} value={patientAge} onChangeText={setPatientAge} placeholder="Years" icon="calendar-outline" keyboardType="numeric" />
                         </View>
                         <View style={{ width: 16 }} />
                         <View style={{ flex: 1 }}>
-                            <InputField label="Contact" value="" onChangeText={() => {}} placeholder="Mobile No." icon="call-outline" keyboardType="phone-pad" />
+                            <InputField label={t('appt.form.contact')} value="" onChangeText={() => {}} placeholder="Mobile No." icon="call-outline" keyboardType="phone-pad" />
                         </View>
                     </View>
 
                     {/* Doctor Info */}
-                    <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 24 }]}>Doctor & Hospital</Text>
-                    <InputField label="Doctor Name" value={doctorName} onChangeText={setDoctorName} placeholder="Dr. Name" icon="medkit-outline" />
-                    <InputField label="Speciality" value={speciality} onChangeText={setSpeciality} placeholder="e.g. Cardiologist" icon="ribbon-outline" />
-                    <InputField label="Hospital Name" value={hospitalName} onChangeText={setHospitalName} placeholder="Hospital/Clinic" icon="business-outline" />
-                    <InputField label="Address" value={address} onChangeText={setAddress} placeholder="Hospital Address" icon="location-outline" />
+                    <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 24 }]}>{t('appt.form.doctor_hospital')}</Text>
+                    <InputField label={t('appt.form.doctor_name')} value={doctorName} onChangeText={setDoctorName} placeholder="Dr. Name" icon="medkit-outline" />
+                    <InputField label={t('appt.form.speciality')} value={speciality} onChangeText={setSpeciality} placeholder="e.g. Cardiologist" icon="ribbon-outline" />
+                    <InputField label={t('appt.form.hospital_name')} value={hospitalName} onChangeText={setHospitalName} placeholder="Hospital/Clinic" icon="business-outline" />
+                    <InputField label={t('appt.form.address')} value={address} onChangeText={setAddress} placeholder="Hospital Address" icon="location-outline" />
 
                     {/* Date & Time */}
-                    <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 24 }]}>Schedule</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 24 }]}>{t('appt.form.schedule')}</Text>
                     <View style={styles.row}>
                         <TouchableOpacity 
                             style={[styles.pickerBtn, { backgroundColor: theme.input, flex: 1 }]}
@@ -207,10 +209,10 @@ export default function AddAppointment() {
                     </View>
 
                     {showDatePicker && (
-                        <DateTimePicker value={date} mode="date" display="default" onChange={onDateChange} />
+                        <DateTimePicker value={date} mode="date" display="default" minimumDate={new Date()} onChange={onDateChange} />
                     )}
                     {showTimePicker && (
-                        <DateTimePicker value={date} mode="time" display="default" onChange={onTimeChange} />
+                        <DateTimePicker value={date} mode="time" display="default" minimumDate={new Date()} onChange={onTimeChange} />
                     )}
 
                     {/* Reminders */}
@@ -218,7 +220,7 @@ export default function AddAppointment() {
                         <View style={styles.reminderHeader}>
                             <View style={styles.row}>
                                 <Ionicons name="notifications-outline" size={24} color={theme.primary} />
-                                <Text style={[styles.reminderTitle, { color: theme.text }]}>Smart Reminders</Text>
+                                <Text style={[styles.reminderTitle, { color: theme.text }]}>{t('appt.form.reminders')}</Text>
                             </View>
                             <Switch
                                 value={remindersEnabled}
@@ -231,7 +233,7 @@ export default function AddAppointment() {
                         {remindersEnabled && (
                             <View style={styles.reminderOptions}>
                                 <View style={styles.reminderOption}>
-                                    <Text style={[styles.optionLabel, { color: theme.textDim }]}>24 Hours Before</Text>
+                                    <Text style={[styles.optionLabel, { color: theme.textDim }]}>{t('appt.form.remind_24h')}</Text>
                                     <Switch
                                         value={remind24h}
                                         onValueChange={setRemind24h}
@@ -241,7 +243,7 @@ export default function AddAppointment() {
                                     />
                                 </View>
                                 <View style={styles.reminderOption}>
-                                    <Text style={[styles.optionLabel, { color: theme.textDim }]}>2 Hours Before</Text>
+                                    <Text style={[styles.optionLabel, { color: theme.textDim }]}>{t('appt.form.remind_2h')}</Text>
                                     <Switch
                                         value={remind2h}
                                         onValueChange={setRemind2h}
@@ -255,13 +257,13 @@ export default function AddAppointment() {
                     </View>
 
                     {/* Notes */}
-                    <Text style={[styles.label, { color: theme.textDim, marginTop: 24 }]}>Notes</Text>
+                    <Text style={[styles.label, { color: theme.textDim, marginTop: 24 }]}>{t('appt.form.notes')}</Text>
                     <View style={[styles.notesWrapper, { backgroundColor: theme.input }]}>
                         <TextInput
                             style={[styles.notesInput, { color: theme.text }]}
                             value={notes}
                             onChangeText={setNotes}
-                            placeholder="Add any instructions or reasons for visit..."
+                            placeholder={t('appt.form.notes_placeholder')}
                             placeholderTextColor={theme.textDim}
                             multiline
                             numberOfLines={4}
@@ -285,7 +287,7 @@ export default function AddAppointment() {
                         {loading ? <ActivityIndicator color="#FFF" /> : (
                             <>
                                 <Ionicons name="checkmark-circle" size={24} color="#FFF" />
-                                <Text style={styles.saveBtnText}>SCHEDULE APPOINTMENT</Text>
+                                <Text style={styles.saveBtnText}>{t('appt.form.btn_save')}</Text>
                             </>
                         )}
                     </LinearGradient>

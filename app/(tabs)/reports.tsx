@@ -25,7 +25,8 @@ export default function Reports() {
         const q = query(collection(db, 'users', user.uid, 'medicines'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             let taken = 0, missed = 0, pending = 0;
-            const today = new Date().toISOString().split('T')[0];
+            const todayObj = new Date();
+            const today = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
 
             snapshot.forEach((doc) => {
                 const data = doc.data();

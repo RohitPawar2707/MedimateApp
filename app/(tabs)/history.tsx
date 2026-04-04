@@ -7,21 +7,22 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
 import { auth, db } from '../../firebaseConfig';
+import { useLanguage } from '@/context/LanguageContext';
 
 type FilterType = 'all' | 'today' | 'yesterday' | 'taken' | 'missed';
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, t: any): string {
     const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(today.getDate() - 1);
 
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
-    if (dateStr === todayStr) return 'Today';
-    if (dateStr === yesterdayStr) return 'Yesterday';
+    if (dateStr === todayStr) return t('history.day.today');
+    if (dateStr === yesterdayStr) return t('history.day.yesterday');
 
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return new Date(dateStr).toLocaleDateString(undefined, {
         weekday: 'long',
         month: 'short',
         day: 'numeric',
@@ -32,6 +33,7 @@ function formatDate(dateStr: string): string {
 export default function History() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
+    const { t } = useLanguage();
 
     const [allHistory, setAllHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -80,10 +82,11 @@ export default function History() {
         }
     };
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
     const filteredHistory = allHistory.filter(item => {
         if (filter === 'today') return item.date === todayStr;
@@ -102,11 +105,11 @@ export default function History() {
     const groupedDates = Object.keys(groupedHistory).sort((a, b) => b.localeCompare(a));
 
     const filters: { key: FilterType; label: string; icon: string }[] = [
-        { key: 'all', label: 'All', icon: 'list-outline' },
-        { key: 'today', label: 'Today', icon: 'today-outline' },
-        { key: 'yesterday', label: 'Yesterday', icon: 'calendar-outline' },
-        { key: 'taken', label: 'Taken', icon: 'checkmark-circle-outline' },
-        { key: 'missed', label: 'Missed', icon: 'close-circle-outline' },
+        { key: 'all', label: t('history.filter.all'), icon: 'list-outline' },
+        { key: 'today', label: t('history.filter.today'), icon: 'today-outline' },
+        { key: 'yesterday', label: t('history.filter.yesterday'), icon: 'calendar-outline' },
+        { key: 'taken', label: t('history.filter.taken'), icon: 'checkmark-circle-outline' },
+        { key: 'missed', label: t('history.filter.missed'), icon: 'close-circle-outline' },
     ];
 
     const takenCount = allHistory.filter(i => i.status === 'taken').length;
@@ -125,23 +128,23 @@ export default function History() {
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >
                 <Animated.View entering={FadeInUp.duration(600)}>
-                    <Text style={styles.headerTitle}>Medication History</Text>
-                    <Text style={styles.headerSubtitle}>Track every dose, every day</Text>
+                    <Text style={styles.headerTitle}>{t('history.title')}</Text>
+                    <Text style={styles.headerSubtitle}>{t('history.subtitle')}</Text>
                 </Animated.View>
 
                 {/* Summary chips */}
                 <Animated.View entering={FadeInUp.delay(200)} style={styles.summaryRow}>
                     <View style={styles.summaryChip}>
                         <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                        <Text style={styles.summaryChipText}>{takenCount} Taken</Text>
+                        <Text style={styles.summaryChipText}>{takenCount} {t('history.taken')}</Text>
                     </View>
                     <View style={styles.summaryChip}>
                         <Ionicons name="close-circle" size={16} color="#EF4444" />
-                        <Text style={styles.summaryChipText}>{missedCount} Missed</Text>
+                        <Text style={styles.summaryChipText}>{missedCount} {t('history.missed')}</Text>
                     </View>
                     <View style={[styles.summaryChip, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
                         <Ionicons name="stats-chart" size={16} color="#FFF" />
-                        <Text style={styles.summaryChipText}>{adherence}% Adherence</Text>
+                        <Text style={styles.summaryChipText}>{adherence}% {t('history.adherence')}</Text>
                     </View>
                 </Animated.View>
             </LinearGradient>
@@ -175,16 +178,16 @@ export default function History() {
             {loading ? (
                 <View style={styles.centerContainer}>
                     <ActivityIndicator size="large" color={theme.primary} />
-                    <Text style={[styles.loadingText, { color: theme.textDim }]}>Loading history...</Text>
+                    <Text style={[styles.loadingText, { color: theme.textDim }]}>{t('history.loading')}</Text>
                 </View>
             ) : groupedDates.length === 0 ? (
                 <Animated.View entering={FadeInUp.delay(200)} style={styles.centerContainer}>
                     <View style={[styles.emptyIcon, { backgroundColor: theme.input }]}>
                         <Ionicons name="journal-outline" size={60} color={theme.border} />
                     </View>
-                    <Text style={[styles.emptyText, { color: theme.text }]}>No Records Found</Text>
+                    <Text style={[styles.emptyText, { color: theme.text }]}>{t('history.empty')}</Text>
                     <Text style={[styles.emptySub, { color: theme.textDim }]}>
-                        {filter === 'all' ? 'Take your first dose to see history here!' : `No ${filter} records found.`}
+                        {filter === 'all' ? t('history.empty.all') : t('history.empty.filtered').replace('{filter}', t(`history.filter.${filter}` as any))}
                     </Text>
                 </Animated.View>
             ) : (
@@ -200,7 +203,7 @@ export default function History() {
                             {/* Date Group Header */}
                             <View style={styles.dateGroup}>
                                 <View style={[styles.dateDot, { backgroundColor: theme.primary }]} />
-                                <Text style={[styles.dateGroupText, { color: theme.text }]}>{formatDate(date)}</Text>
+                                <Text style={[styles.dateGroupText, { color: theme.text }]}>{formatDate(date, t)}</Text>
                                 <View style={[styles.dateLine, { backgroundColor: theme.border }]} />
                             </View>
 
@@ -280,7 +283,7 @@ export default function History() {
                                                             : '#F59E0B'
                                                 }
                                             ]}>
-                                                {(item.status || 'pending').toUpperCase()}
+                                                {item.status === 'taken' ? t('home.status.taken') : item.status === 'missed' ? t('home.status.missed') : t('home.status.pending')}
                                             </Text>
                                         </View>
                                     </View>

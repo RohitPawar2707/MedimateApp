@@ -4,11 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/context/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
+  const { t } = useLanguage();
 
   return (
     <Tabs
@@ -45,7 +47,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
           tabBarIcon: ({ color }) => <Ionicons size={24} name="home-outline" color={color} />,
         }}
       />
@@ -53,7 +55,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'History',
+          title: t('tabs.history'),
           tabBarIcon: ({ color }) => <Ionicons size={24} name="calendar-outline" color={color} />,
         }}
       />
@@ -61,7 +63,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="appointments"
         options={{
-          title: 'Appointments',
+          title: t('tabs.appointments'),
           tabBarIcon: ({ color }) => <Ionicons size={24} name="medical-outline" color={color} />,
         }}
       />
@@ -83,7 +85,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('tabs.settings'),
           tabBarIcon: ({ color }) => <Ionicons size={24} name="person-outline" color={color} />,
         }}
       />

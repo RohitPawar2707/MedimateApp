@@ -4,14 +4,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Radius, Gaps } from '@/constants/theme';
 import { auth, db } from '../firebaseConfig';
-import { collection, query, onSnapshot, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
+import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function MedicineList() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
+    const { t } = useLanguage();
 
     const [medicines, setMedicines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -29,9 +32,16 @@ export default function MedicineList() {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             const meds: any[] = [];
             snapshot.forEach((doc) => {
-                meds.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                const historyEntry = data.history?.[todayStr];
+                const todayStatus = typeof historyEntry === 'object'
+                    ? historyEntry?.status
+                    : historyEntry ?? 'pending';
+                meds.push({ id: doc.id, ...data, todayStatus });
             });
             setMedicines(meds);
             setLoading(false);
@@ -49,8 +59,14 @@ export default function MedicineList() {
 
         // Using standard Alert for cross-platform support
         const confirmDelete = () => {
-             deleteDoc(doc(db, 'users', user.uid, 'medicines', id))
-                .catch(err => console.error("Delete error:", err));
+             getDoc(doc(db, 'users', user.uid, 'medicines', id)).then(snap => {
+                 if (snap.exists()) {
+                     const data = snap.data();
+                     const ids = [data.notificationId, data.preNotificationId, data.snoozeNotificationId].filter(Boolean);
+                     ids.forEach(notifId => Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {}));
+                 }
+                 return deleteDoc(doc(db, 'users', user.uid, 'medicines', id));
+             }).catch(err => console.error("Delete error:", err));
         };
 
         if (Platform.OS === 'web') {
@@ -76,8 +92,8 @@ export default function MedicineList() {
                         <Ionicons name="arrow-back" size={24} color="#FFF" />
                     </TouchableOpacity>
                     <View>
-                        <Text style={styles.headerTitle}>All Medicines</Text>
-                        <Text style={styles.headerSubtitle}>{medicines.length} medications total</Text>
+                        <Text style={styles.headerTitle}>{t('meds.title')}</Text>
+                        <Text style={styles.headerSubtitle}>{medicines.length} {t('meds.subtitle')}</Text>
                     </View>
                 </Animated.View>
             </LinearGradient>
@@ -91,8 +107,8 @@ export default function MedicineList() {
                     <View style={[styles.emptyIconBox, { backgroundColor: theme.input }]}>
                         <Ionicons name="medical-outline" size={60} color={theme.border} />
                     </View>
-                    <Text style={[styles.emptyTitle, { color: theme.text }]}>No medicines found</Text>
-                    <Text style={[styles.emptySub, { color: theme.textDim }]}>Tap 'Add Medicine' on the home screen to start tracking.</Text>
+                    <Text style={[styles.emptyTitle, { color: theme.text }]}>{t('meds.empty')}</Text>
+                    <Text style={[styles.emptySub, { color: theme.textDim }]}>{t('meds.empty_sub')}</Text>
                 </Animated.View>
             ) : (
                 <FlatList
@@ -116,13 +132,27 @@ export default function MedicineList() {
                                 </View>
                                 <View style={styles.medInfo}>
                                     <Text style={[styles.medName, { color: theme.text }]}>{item.name}</Text>
-                                    <View style={styles.timeBadge}>
-                                        <Ionicons name="time-outline" size={14} color={theme.textDim} />
-                                        <Text style={[styles.timeText, { color: theme.textDim }]}>{item.time}</Text>
+                                    <View style={styles.medMeta}>
+                                        <View style={styles.timeBadge}>
+                                            <Ionicons name="time-outline" size={14} color={theme.textDim} />
+                                            <Text style={[styles.timeText, { color: theme.textDim }]}>{item.time}</Text>
+                                        </View>
+                                        <View style={[
+                                            styles.statusBadge, 
+                                            { backgroundColor: item.todayStatus === 'taken' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)' }
+                                        ]}>
+                                            <View style={[
+                                                styles.statusDot, 
+                                                { backgroundColor: item.todayStatus === 'taken' ? theme.success : theme.warning }
+                                            ]} />
+                                            <Text style={[
+                                                styles.statusBadgeText, 
+                                                { color: item.todayStatus === 'taken' ? theme.success : theme.warning }
+                                            ]}>
+                                                {item.todayStatus === 'taken' ? t('meds.status.taken') : t('meds.status.pending')}
+                                            </Text>
+                                        </View>
                                     </View>
-                                    {item.notes ? (
-                                        <Text style={[styles.notes, { color: theme.textDim }]} numberOfLines={1}>{item.notes}</Text>
-                                    ) : null}
                                 </View>
                                 <TouchableOpacity 
                                     style={styles.deleteBtn}
@@ -217,6 +247,31 @@ const styles = StyleSheet.create({
     timeText: {
         fontSize: 14,
         fontWeight: '700',
+    },
+    medMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginTop: 4,
+        flexWrap: 'wrap',
+    },
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        gap: 6,
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    statusBadgeText: {
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
     },
     notes: {
         fontSize: 13,
