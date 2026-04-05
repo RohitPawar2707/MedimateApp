@@ -284,84 +284,52 @@ export default function Home() {
                         return (
                             <Animated.View
                                 key={med.id}
-                                entering={FadeInRight.delay(700 + index * 100).duration(600)}
+                                entering={FadeInRight.delay(600 + index * 100).duration(500)}
                                 style={[
                                     styles.medCard,
                                     {
                                         backgroundColor: theme.surface,
                                         ...theme.cardShadow,
-                                        borderLeftWidth: 4,
+                                        borderLeftWidth: 6,
                                         borderLeftColor: isTaken ? theme.success : isMissed ? theme.error : theme.warning,
                                     }
                                 ]}
                             >
-                                {/* Medicine icon/image */}
-                                <View style={styles.medIconBox}>
-                                    {med.imageUrl ? (
-                                        <Image source={{ uri: med.imageUrl }} style={styles.medImage} />
-                                    ) : (
-                                        <View style={[styles.iconCircle, { backgroundColor: theme.input }]}>
-                                            <Ionicons name="medkit" size={28} color={theme.primary} />
-                                        </View>
-                                    )}
-                                </View>
-
-                                {/* Details */}
+                                {/* Medicine Details */}
                                 <View style={styles.medDetails}>
-                                    <Text style={[styles.medNameText, { color: theme.text }]}>{med.name}</Text>
-                                    <View style={styles.medTimeBadge}>
-                                        <Ionicons name="alarm-outline" size={14} color={theme.textDim} />
-                                        <Text style={[styles.medTimeText, { color: theme.textDim }]}>{med.time}</Text>
+                                    <View style={styles.nameRow}>
+                                        <Text style={[styles.medNameText, { color: theme.text }]} numberOfLines={1}>{med.name}</Text>
+                                        <View style={[styles.timeBadgeMinimal, { backgroundColor: theme.input }]}>
+                                            <Ionicons name="time" size={14} color={theme.primary} />
+                                            <Text style={[styles.medTimeText, { color: theme.text }]}>{med.time}</Text>
+                                        </View>
                                     </View>
-                                    {med.notes ? (
-                                        <Text style={[styles.medNotes, { color: theme.textDim }]} numberOfLines={1}>{med.notes}</Text>
-                                    ) : null}
                                 </View>
 
-                                {/* Status / Action */}
-                                <View style={styles.medAction}>
+                                {/* Simple Status Indicator */}
+                                <TouchableOpacity 
+                                    style={styles.statusIndicator}
+                                    onPress={() => !isTaken && markStatus(med.id, 'taken')}
+                                    activeOpacity={0.7}
+                                    disabled={isTaken}
+                                >
                                     {isTaken ? (
-                                        <View style={[styles.statusChip, { backgroundColor: 'rgba(16,185,129,0.12)' }]}>
-                                            <Ionicons name="checkmark-circle" size={28} color={theme.success} />
-                                            <Text style={[styles.statusChipText, { color: theme.success }]}>{t('home.status.taken')}</Text>
+                                        <View style={[styles.indicatorCircle, { backgroundColor: theme.success + '15' }]}>
+                                            <Ionicons name="checkmark-circle" size={36} color={theme.success} />
+                                            <Text style={[styles.indicatorText, { color: theme.success }]}>TAKEN</Text>
                                         </View>
                                     ) : isMissed ? (
-                                        <View style={[styles.statusChip, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                                            <Ionicons name="close-circle" size={28} color={theme.error} />
-                                            <Text style={[styles.statusChipText, { color: theme.error }]}>{t('home.status.missed')}</Text>
+                                        <View style={[styles.indicatorCircle, { backgroundColor: theme.error + '15' }]}>
+                                            <Ionicons name="close-circle" size={36} color={theme.error} />
+                                            <Text style={[styles.indicatorText, { color: theme.error }]}>MISSED</Text>
                                         </View>
                                     ) : (
-                                        <View style={styles.actionButtons}>
-                                            <TouchableOpacity
-                                                style={[styles.takeBtn, { backgroundColor: theme.success }]}
-                                                onPress={() => markStatus(med.id, 'taken')}
-                                            >
-                                                <Ionicons name="checkmark" size={20} color="#FFF" />
-                                            </TouchableOpacity>
-                                            
-                                            {med.isSnoozed ? (
-                                                <View style={[styles.snoozedChip, { backgroundColor: theme.input }]}>
-                                                    <ActivityIndicator size="small" color={theme.primary} />
-                                                </View>
-                                            ) : (
-                                                <TouchableOpacity
-                                                    style={[styles.snoozeBtn, { borderColor: theme.primary }]}
-                                                    onPress={() => handleSnooze(med)}
-                                                >
-                                                    <Ionicons name="time-outline" size={18} color={theme.primary} />
-                                                    <Text style={styles.snoozeBtnText}>{t('home.action.snooze')}</Text>
-                                                </TouchableOpacity>
-                                            )}
- 
-                                            <TouchableOpacity
-                                                style={[styles.missBtn, { borderColor: theme.error }]}
-                                                onPress={() => markStatus(med.id, 'missed')}
-                                            >
-                                                <Ionicons name="close" size={18} color={theme.error} />
-                                            </TouchableOpacity>
+                                        <View style={[styles.indicatorCircle, { backgroundColor: theme.warning + '15' }]}>
+                                            <Ionicons name="alert-circle" size={36} color={theme.warning} />
+                                            <Text style={[styles.indicatorText, { color: theme.warning }]}>PENDING</Text>
                                         </View>
                                     )}
-                                </View>
+                                </TouchableOpacity>
                             </Animated.View>
                         );
                     })
@@ -465,45 +433,42 @@ const styles = StyleSheet.create({
         marginHorizontal: 24,
         marginBottom: 14,
         padding: 16,
-        borderRadius: 22,
+        borderRadius: 24,
     },
-    medIconBox: { marginRight: 14 },
-    medImage: { width: 58, height: 58, borderRadius: 16 },
-    iconCircle: { width: 58, height: 58, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
     medDetails: { flex: 1 },
-    medNameText: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
-    medTimeBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    medTimeText: { fontSize: 13, fontWeight: '700' },
-    medNotes: { fontSize: 12, fontWeight: '600', marginTop: 4 },
-    medAction: { paddingLeft: 10 },
-    statusChip: {
-        alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        borderRadius: 14,
-        gap: 4,
-    },
-    statusChipText: { fontSize: 11, fontWeight: '900' },
-    actionButtons: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-    takeBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    snoozeBtn: { 
+    nameRow: { 
         flexDirection: 'row', 
         alignItems: 'center', 
-        borderWidth: 1.5, 
-        paddingHorizontal: 10, 
-        height: 44, 
+        justifyContent: 'space-between',
+        width: '100%',
+        paddingRight: 10,
+    },
+    medNameText: { fontSize: 20, fontWeight: '900' },
+    timeBadgeMinimal: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
         borderRadius: 12,
+        gap: 6,
+    },
+    medTimeText: { fontSize: 14, fontWeight: '800' },
+    statusIndicator: {
+        marginLeft: 10,
+    },
+    indicatorCircle: {
+        width: 85,
+        height: 85,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
         gap: 4,
     },
-    snoozeBtnText: { fontSize: 13, fontWeight: '800' },
-    snoozedChip: { 
-        width: 44, 
-        height: 44, 
-        borderRadius: 12, 
-        justifyContent: 'center', 
-        alignItems: 'center',
+    indicatorText: {
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 0.5,
     },
-    missBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
     nagBanner: {
         position: 'absolute',
         top: 60,

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, StatusBar, FlatList, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Radius, Gaps } from '@/constants/theme';
@@ -23,38 +23,34 @@ const slides = [
     {
         id: '1',
         title: 'Medimate',
-        subtitle: 'Your Intelligent Health Companion',
-        description: 'Advanced medication tracking and appointment management designed for simplicity.',
+        subtitle: 'ELITE HEALTH MANAGEMENT',
+        description: 'Advanced medication tracking and clinical management designed for precision care.',
         icon: 'medkit',
         iconColor: '#3B6CF6',
-        bgColors: ['#3B6CF6', '#1E40AF'] as const
     },
     {
         id: '2',
-        title: 'Smart Alerts',
-        subtitle: 'Never Miss a Dose',
-        description: 'Our zero-delay "Nagging" system ensures you stay on track with persistent reminders.',
+        title: 'Smart Alarms',
+        subtitle: 'CRITICAL DOSE REMINDERS',
+        description: 'Our zero-delay "Nagging" system ensures strict adherence to your medication protocol.',
         icon: 'notifications',
         iconColor: '#0EA5A0',
-        bgColors: ['#0EA5A0', '#0D9488'] as const
     },
     {
         id: '3',
-        title: 'Health Reports',
-        subtitle: 'Data Driven Wellness',
-        description: 'Comprehensive history and exportable reports for your healthcare providers.',
-        icon: 'analytics',
+        title: 'Clinical Care',
+        subtitle: 'SEAMLESS APPOINTMENTS',
+        description: 'A unified professional dashboard for tracking doctor visits and clinical follow-ups.',
+        icon: 'calendar',
         iconColor: '#8B5CF6',
-        bgColors: ['#8B5CF6', '#7C3AED'] as const
     },
     {
         id: '4',
-        title: 'Voice Control',
-        subtitle: 'Hands-Free Management',
-        description: 'Talk to Medimate to log doses or check your next appointment effortlessly.',
-        icon: 'mic',
+        title: 'Health Data',
+        subtitle: 'SECURE MEDICAL RECORDS',
+        description: 'Generate comprehensive analytical reports and access your full history with ease.',
+        icon: 'document-text',
         iconColor: '#EC4899',
-        bgColors: ['#EC4899', '#DB2777'] as const
     }
 ];
 
@@ -64,6 +60,30 @@ export default function Welcome() {
     const scrollX = useSharedValue(0);
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
+    const autoScrollTimer = useRef<NodeJS.Timeout | null>(null);
+
+    // Automatic Swiping Logic
+    useEffect(() => {
+        const startAutoScroll = () => {
+            autoScrollTimer.current = setInterval(() => {
+                if (currentIndex < slides.length - 1) {
+                    flatListRef.current?.scrollToIndex({ 
+                        index: currentIndex + 1, 
+                        animated: true 
+                    });
+                } else {
+                    // Loop back to start or stop
+                    flatListRef.current?.scrollToIndex({ index: 0, animated: true });
+                }
+            }, 4000); // 4 seconds interval
+        };
+
+        startAutoScroll();
+
+        return () => {
+            if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+        };
+    }, [currentIndex]);
 
     const onScroll = useAnimatedScrollHandler({
         onScroll: (event) => {
@@ -98,7 +118,9 @@ export default function Welcome() {
                 <View style={styles.lowerContent}>
                     <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.textWrapper}>
                         <Text style={[styles.slideTitle, { color: theme.text }]}>{item.title}</Text>
-                        <Text style={[styles.slideSubtitle, { color: item.iconColor }]}>{item.subtitle}</Text>
+                        <View style={[styles.professionalBadge, { backgroundColor: item.iconColor + '15' }]}>
+                            <Text style={[styles.slideSubtitle, { color: item.iconColor }]}>{item.subtitle}</Text>
+                        </View>
                         <Text style={[styles.slideDescription, { color: theme.textDim }]}>
                             {item.description}
                         </Text>
@@ -109,6 +131,9 @@ export default function Welcome() {
     };
 
     const nextSlide = () => {
+        // Clearing timer on manual interaction
+        if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+        
         if (currentIndex < slides.length - 1) {
             flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
         } else {
@@ -132,6 +157,9 @@ export default function Welcome() {
                 viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
                 renderItem={renderItem}
                 scrollEventThrottle={16}
+                onScrollBeginDrag={() => {
+                    if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+                }}
             />
 
             <View style={styles.footer}>
@@ -190,7 +218,7 @@ export default function Welcome() {
                         onPress={() => router.push('/login')}
                     >
                         <Text style={[styles.secondaryButtonText, { color: theme.textDim }]}>
-                            Already have an account? <Text style={{ color: theme.primary, fontWeight: '900' }}>Log In</Text>
+                            Access existing profile? <Text style={{ color: theme.primary, fontWeight: '900' }}>Sign In</Text>
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -213,32 +241,32 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     iconContainer: {
-        width: 200,
-        height: 200,
-        borderRadius: 100,
+        width: 220,
+        height: 220,
+        borderRadius: 110,
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 15,
+        elevation: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.25,
+        shadowRadius: 18,
     },
     iconCircle: {
-        width: 170,
-        height: 170,
-        borderRadius: 85,
+        width: 190,
+        height: 190,
+        borderRadius: 95,
         justifyContent: 'center',
         alignItems: 'center',
     },
     iconRing: {
         position: 'absolute',
-        width: 220,
-        height: 220,
-        borderRadius: 110,
+        width: 240,
+        height: 240,
+        borderRadius: 120,
         borderWidth: 2,
         borderStyle: 'dashed',
-        opacity: 0.3,
+        opacity: 0.2,
     },
     lowerContent: {
         flex: 0.45,
@@ -248,23 +276,29 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     slideTitle: {
-        fontSize: 44,
+        fontSize: 48,
         fontWeight: '900',
         letterSpacing: -1,
-        marginBottom: 8,
+        marginBottom: 12,
     },
-    slideSubtitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-        letterSpacing: 2,
+    professionalBadge: {
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        borderRadius: 12,
         marginBottom: 20,
     },
+    slideSubtitle: {
+        fontSize: 14,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 2.5,
+    },
     slideDescription: {
-        fontSize: 16,
+        fontSize: 17,
         textAlign: 'center',
-        lineHeight: 26,
+        lineHeight: 28,
         fontWeight: '600',
+        paddingHorizontal: 10,
     },
     footer: {
         position: 'absolute',

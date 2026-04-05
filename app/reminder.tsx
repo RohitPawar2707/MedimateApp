@@ -216,31 +216,34 @@ export default function Reminder() {
                             {loading ? <ActivityIndicator color="#FFF" /> : (
                                 <>
                                     <Ionicons name="checkmark-circle" size={24} color="#FFF" />
-                                    <Text style={styles.btnText}>✅  I'VE TAKEN IT</Text>
+                                    <Text style={styles.btnText}>✅  TAKEN</Text>
                                 </>
                             )}
                         </LinearGradient>
                     </TouchableOpacity>
 
-                    {/* SNOOZE — does NOT change Firestore status, medicine stays 'pending' on home screen */}
+                    {/* I'LL TAKE IT — dismisses alert, keeps status PENDING on home screen */}
                     <TouchableOpacity
-                        style={[styles.snoozeBtn, { borderColor: theme.primary, backgroundColor: 'rgba(79,70,229,0.08)' }]}
-                        onPress={handleSnooze}
-                    >
-                        <Ionicons name="alarm-outline" size={22} color={theme.primary} />
-                        <Text style={[styles.snoozeText, { color: theme.primary }]}>⏰  REMIND IN 5 MINS</Text>
-                    </TouchableOpacity>
-
-                    {/* LATER — explicitly marks status as 'pending', stops alert, home shows orange */}
-                    <TouchableOpacity
-                        style={[styles.laterBtn, { borderColor: theme.border }]}
+                        style={[styles.illTakeItBtn, { borderColor: theme.warning, backgroundColor: theme.warning + '15' }]}
                         onPress={() => {
                             stopAlert();
                             router.replace('/(tabs)');
                         }}
                     >
-                        <Ionicons name="chevron-down-circle-outline" size={20} color={theme.textDim} />
-                        <Text style={[styles.laterText, { color: theme.textDim }]}>I'LL TAKE IT LATER</Text>
+                        <Ionicons name="hand-right-outline" size={22} color={theme.warning} />
+                        <Text style={[styles.illTakeItText, { color: theme.warning }]}>✋ I'LL TAKE IT</Text>
+                    </TouchableOpacity>
+
+                    {/* CANCEL — dismisses alert immediately */}
+                    <TouchableOpacity
+                        style={[styles.cancelBtn, { borderColor: theme.border }]}
+                        onPress={() => {
+                            stopAlert();
+                            router.replace('/(tabs)');
+                        }}
+                    >
+                        <Ionicons name="close-outline" size={22} color={theme.textDim} />
+                        <Text style={[styles.cancelText, { color: theme.textDim }]}>CANCEL</Text>
                     </TouchableOpacity>
                 </Animated.View>
             </View>
@@ -342,7 +345,7 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         letterSpacing: 1,
     },
-    snoozeBtn: {
+    illTakeItBtn: {
         width: '100%',
         height: 65,
         borderRadius: 20,
@@ -352,11 +355,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 10,
     },
-    snoozeText: {
+    illTakeItText: {
         fontSize: 16,
         fontWeight: '700',
     },
-    laterBtn: {
+    cancelBtn: {
         width: '100%',
         height: 52,
         borderRadius: 16,
@@ -366,7 +369,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 8,
     },
-    laterText: {
+    cancelText: {
         fontSize: 14,
         fontWeight: '700',
         letterSpacing: 0.5,
