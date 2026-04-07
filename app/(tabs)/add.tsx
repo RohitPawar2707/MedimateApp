@@ -130,11 +130,14 @@ export default function AddMedicine() {
             }
 
             finalStartDate.setHours(0, 0, 0, 0);
-            finalEndDate.setHours(23, 59, 59, 999);
+            const hours = time.getHours();
+            const minutes = time.getMinutes();
+            const time24 = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
             const docRef = await addDoc(collection(db, 'users', user.uid, 'medicines'), {
                 name: name.trim(),
                 time: formattedTime,
+                time24: time24, // Added for hardware sync
                 fullTime: time.toISOString(),
                 notes: notes.trim(),
                 imageUrl: null,
