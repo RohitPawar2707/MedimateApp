@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Radius, Gaps } from '@/constants/theme';
-import { auth, db } from '../firebaseConfig';
+import { Colors, Radius, Gaps } from '@/constants/theme';
+import { auth, db, db_realtime } from '../firebaseConfig';
 import { collection, query, onSnapshot, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
+import { ref, remove } from 'firebase/database';
 import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
@@ -65,6 +67,9 @@ export default function MedicineList() {
                      const ids = [data.notificationId, data.preNotificationId, data.snoozeNotificationId].filter(Boolean);
                      ids.forEach(notifId => Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {}));
                  }
+                 // Remove from Realtime Database as well
+                 remove(ref(db_realtime, `medicines_hw/${user.uid}/${id}`)).catch(err => console.error("RTDB Delete error:", err));
+
                  return deleteDoc(doc(db, 'users', user.uid, 'medicines', id));
              }).catch(err => console.error("Delete error:", err));
         };

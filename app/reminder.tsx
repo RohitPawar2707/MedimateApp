@@ -7,10 +7,11 @@ import * as Notifications from 'expo-notifications';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { ref, update } from 'firebase/database';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, RotateInUpLeft, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import { auth, db } from '../firebaseConfig';
+import { auth, db, db_realtime } from '../firebaseConfig';
 
 const { width, height } = Dimensions.get('window');
 
@@ -136,6 +137,12 @@ export default function Reminder() {
                 
                 history[todayStr] = { status: 'taken', timestamp: new Date().toISOString() };
                 await updateDoc(medRef, { history, status: 'taken' });
+
+                // Sync status to Realtime Database for ESP8266
+                await update(ref(db_realtime, `medicines_hw/${user.uid}/${medId}`), {
+                    status: 'taken',
+                    updatedAt: new Date().toISOString(),
+                });
 
                 // Cancel scheduled notifications
                 // Cancel all related notifications

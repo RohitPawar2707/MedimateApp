@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { addDoc, collection, updateDoc } from 'firebase/firestore';
+import { ref, set } from 'firebase/database';
 import React, { useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -22,7 +23,7 @@ import {
     View,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { auth, db } from '../../firebaseConfig';
+import { auth, db, db_realtime } from '../../firebaseConfig';
 
 export default function AddMedicine() {
     const colorScheme = useColorScheme();
@@ -152,6 +153,15 @@ export default function AddMedicine() {
                 nextAlarmTime: (trigger as Date).toISOString(),
                 notificationId: notificationId || '',
                 preNotificationId: preNotificationId || '',
+            });
+
+            // Dual-write to Realtime Database for ESP8266
+            await set(ref(db_realtime, `medicines_hw/${user.uid}/${docRef.id}`), {
+                name: name.trim(),
+                time24: time24,
+                status: 'pending',
+                notes: notes.trim(),
+                updatedAt: new Date().toISOString(),
             });
 
             router.replace('/(tabs)');
