@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Radius, Gaps } from '@/constants/theme';
-import { Colors, Radius, Gaps } from '@/constants/theme';
 import { auth, db, db_realtime } from '../firebaseConfig';
 import { collection, query, onSnapshot, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
 import { ref, remove } from 'firebase/database';

@@ -60,7 +60,7 @@ export default function Welcome() {
     const scrollX = useSharedValue(0);
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
-    const autoScrollTimer = useRef<NodeJS.Timeout | null>(null);
+    const autoScrollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Automatic Swiping Logic
     useEffect(() => {
