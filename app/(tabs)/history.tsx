@@ -264,7 +264,7 @@ export default function History() {
                                                             ? 'close-circle'
                                                             : 'time'
                                                 }
-                                                size={22}
+                                                size={16}
                                                 color={
                                                     item.status === 'taken'
                                                         ? '#10B981'
@@ -341,33 +341,34 @@ const styles = StyleSheet.create({
     emptyText: { fontSize: 22, fontWeight: '900', marginBottom: 8 },
     emptySub: { fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
     listContent: { padding: 20, paddingBottom: 140 },
-    dateGroup: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, marginTop: 8 },
+    dateGroup: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, marginTop: 10 },
     dateDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-    dateGroupText: { fontSize: 15, fontWeight: '900', marginRight: 12 },
+    dateGroupText: { fontSize: 16, fontWeight: '900', marginRight: 12, letterSpacing: 0.3 },
     dateLine: { flex: 1, height: 1 },
     historyCard: {
-        borderRadius: 20,
-        marginBottom: 12,
+        borderRadius: 24,
+        marginBottom: 16,
         overflow: 'hidden',
     },
     cardContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        gap: 14,
+        padding: 20,
+        gap: 16,
     },
-    medImage: { width: 52, height: 52, borderRadius: 14 },
-    medIconPlaceholder: { width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    medImage: { width: 60, height: 60, borderRadius: 18 },
+    medIconPlaceholder: { width: 60, height: 60, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
     cardInfo: { flex: 1 },
-    medName: { fontSize: 16, fontWeight: '800', marginBottom: 4 },
-    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    medTime: { fontSize: 13, fontWeight: '700' },
+    medName: { fontSize: 18, fontWeight: '800', marginBottom: 6, letterSpacing: 0.3 },
+    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    medTime: { fontSize: 14, fontWeight: '700' },
     statusBadge: {
+        flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
+        paddingHorizontal: 12,
         paddingVertical: 8,
-        borderRadius: 14,
-        gap: 4,
+        borderRadius: 12,
+        gap: 6,
     },
-    statusText: { fontSize: 10, fontWeight: '900' },
+    statusText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
 });

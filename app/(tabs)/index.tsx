@@ -297,12 +297,10 @@ export default function Home() {
                             >
                                 {/* Medicine Details */}
                                 <View style={styles.medDetails}>
-                                    <View style={styles.nameRow}>
-                                        <Text style={[styles.medNameText, { color: theme.text }]} numberOfLines={1}>{med.name}</Text>
-                                        <View style={[styles.timeBadgeMinimal, { backgroundColor: theme.input }]}>
-                                            <Ionicons name="time" size={14} color={theme.primary} />
-                                            <Text style={[styles.medTimeText, { color: theme.text }]}>{med.time}</Text>
-                                        </View>
+                                    <Text style={[styles.medNameText, { color: theme.text }]} numberOfLines={1}>{med.name}</Text>
+                                    <View style={styles.timeBadgeMinimal}>
+                                        <Ionicons name="time" size={16} color={theme.primary} />
+                                        <Text style={[styles.medTimeText, { color: theme.textDim }]}>{med.time}</Text>
                                     </View>
                                 </View>
 
@@ -315,17 +313,17 @@ export default function Home() {
                                 >
                                     {isTaken ? (
                                         <View style={[styles.indicatorCircle, { backgroundColor: theme.success + '15' }]}>
-                                            <Ionicons name="checkmark-circle" size={36} color={theme.success} />
+                                            <Ionicons name="checkmark-circle" size={32} color={theme.success} />
                                             <Text style={[styles.indicatorText, { color: theme.success }]}>TAKEN</Text>
                                         </View>
                                     ) : isMissed ? (
                                         <View style={[styles.indicatorCircle, { backgroundColor: theme.error + '15' }]}>
-                                            <Ionicons name="close-circle" size={36} color={theme.error} />
+                                            <Ionicons name="close-circle" size={32} color={theme.error} />
                                             <Text style={[styles.indicatorText, { color: theme.error }]}>MISSED</Text>
                                         </View>
                                     ) : (
                                         <View style={[styles.indicatorCircle, { backgroundColor: theme.warning + '15' }]}>
-                                            <Ionicons name="alert-circle" size={36} color={theme.warning} />
+                                            <Ionicons name="alert-circle" size={32} color={theme.warning} />
                                             <Text style={[styles.indicatorText, { color: theme.warning }]}>PENDING</Text>
                                         </View>
                                     )}
@@ -431,35 +429,26 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginHorizontal: 24,
-        marginBottom: 14,
-        padding: 16,
+        marginBottom: 16,
+        paddingVertical: 20,
+        paddingHorizontal: 20,
         borderRadius: 24,
     },
-    medDetails: { flex: 1 },
-    nameRow: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        width: '100%',
-        paddingRight: 10,
-    },
-    medNameText: { fontSize: 20, fontWeight: '900' },
+    medDetails: { flex: 1, paddingRight: 16 },
+    medNameText: { fontSize: 20, fontWeight: '800', marginBottom: 8, letterSpacing: 0.3 },
     timeBadgeMinimal: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 12,
         gap: 6,
     },
-    medTimeText: { fontSize: 14, fontWeight: '800' },
+    medTimeText: { fontSize: 16, fontWeight: '700' },
     statusIndicator: {
-        marginLeft: 10,
+        // Keeps trailing container aligned if needed
     },
     indicatorCircle: {
-        width: 85,
-        height: 85,
-        borderRadius: 24,
+        width: 72,
+        height: 72,
+        borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 4,
