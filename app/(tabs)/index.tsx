@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Platform, Vibration, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Platform, Vibration, Dimensions, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors } from '@/constants/theme';
-import { auth, db } from '../../firebaseConfig';
+import { auth, db, db_realtime } from '../../firebaseConfig';
 import { collection, query, onSnapshot, doc, getDoc, updateDoc, where, orderBy, limit } from 'firebase/firestore';
+import { ref, update, onValue } from 'firebase/database';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
@@ -104,9 +105,62 @@ export default function Home() {
             }
         });
 
+        // Listen to Realtime Database for hardware updates
+        const medsRef = ref(db_realtime, `medicines_hw/${user.uid}`);
+        const unsubscribeRtdb = onValue(medsRef, async (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const today = new Date();
+                const todayStrLocal = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                
+                for (const medId of Object.keys(data)) {
+                    if (data[medId].status === 'taken') {
+                        const updatedAt = data[medId].updatedAt;
+                        if (!updatedAt) continue;
+                        
+                        const updatedObj = new Date(updatedAt);
+                        const updatedLocalStr = `${updatedObj.getFullYear()}-${String(updatedObj.getMonth() + 1).padStart(2, '0')}-${String(updatedObj.getDate()).padStart(2, '0')}`;
+                        
+                        if (updatedLocalStr === todayStrLocal) {
+                            const medDocRef = doc(db, 'users', user.uid, 'medicines', medId);
+                            const medSnap = await getDoc(medDocRef);
+                            if (medSnap.exists()) {
+                                const medData = medSnap.data();
+                                const historyEntry = medData.history?.[todayStrLocal];
+                                const todayStatus = typeof historyEntry === 'object' ? historyEntry?.status : historyEntry ?? 'pending';
+                                
+                                if (todayStatus !== 'taken') {
+                                    const history = medData.history || {};
+                                    history[todayStrLocal] = { status: 'taken', timestamp: new Date().toISOString() };
+                                    await updateDoc(medDocRef, { history, status: 'taken' });
+                                    
+                                    try {
+                                        const cancelIds = [
+                                            medData.notificationId, 
+                                            medData.preNotificationId, 
+                                            medData.snoozeNotificationId
+                                        ].filter(Boolean);
+                                        for (const id of cancelIds) {
+                                            await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+                                        }
+                                    } catch (e) {}
+                                    
+                                    setNagMed((currentNag: any) => {
+                                        if (currentNag?.id === medId) return null;
+                                        return currentNag;
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
         return () => {
             unsubscribe();
             unsubscribeAppt();
+            unsubscribeRtdb();
             notificationSubscription.remove();
             clearInterval(timer);
         };
@@ -132,6 +186,15 @@ export default function Home() {
                 history[todayStr] = { status, timestamp: new Date().toISOString() };
                 await updateDoc(medRef, { history, status });
 
+                try {
+                    await update(ref(db_realtime, `medicines_hw/${user.uid}/${medId}`), {
+                        status: status,
+                        updatedAt: new Date().toISOString(),
+                    });
+                } catch (e) {
+                    console.log('Error updating RTDB:', e);
+                }
+
                  if (status === 'taken') {
                     // Cancel all scheduled notifications for this medicine to ensure no delays or re-triggers
                     try {
@@ -154,6 +217,17 @@ export default function Home() {
         if (nagMed?.id === medId) {
             setNagMed(null);
         }
+    };
+
+    const confirmMarkTaken = (med: any) => {
+        Alert.alert(
+            "Confirm",
+            `Have you taken ${med.name}?`,
+            [
+                { text: "No", style: "cancel" },
+                { text: "Yes", onPress: () => markStatus(med.id, 'taken') }
+            ]
+        );
     };
  
     const handleSnooze = async (med: any) => {
@@ -296,18 +370,23 @@ export default function Home() {
                                 ]}
                             >
                                 {/* Medicine Details */}
-                                <View style={styles.medDetails}>
+                                <TouchableOpacity 
+                                    style={styles.medDetails}
+                                    onPress={() => !isTaken && confirmMarkTaken(med)}
+                                    activeOpacity={0.7}
+                                    disabled={isTaken}
+                                >
                                     <Text style={[styles.medNameText, { color: theme.text }]} numberOfLines={1}>{med.name}</Text>
                                     <View style={styles.timeBadgeMinimal}>
                                         <Ionicons name="time" size={16} color={theme.primary} />
                                         <Text style={[styles.medTimeText, { color: theme.textDim }]}>{med.time}</Text>
                                     </View>
-                                </View>
+                                </TouchableOpacity>
 
                                 {/* Simple Status Indicator */}
                                 <TouchableOpacity 
                                     style={styles.statusIndicator}
-                                    onPress={() => !isTaken && markStatus(med.id, 'taken')}
+                                    onPress={() => !isTaken && confirmMarkTaken(med)}
                                     activeOpacity={0.7}
                                     disabled={isTaken}
                                 >

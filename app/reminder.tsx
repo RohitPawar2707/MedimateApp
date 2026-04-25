@@ -7,7 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { ref, update } from 'firebase/database';
+import { ref, update, onValue } from 'firebase/database';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, RotateInUpLeft, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
@@ -49,6 +49,8 @@ export default function Reminder() {
         const user = auth.currentUser;
         let unsubscribe = () => {};
 
+        let unsubscribeRtdb = () => {};
+
         if (user && medId) {
             const today = new Date();
             const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -61,6 +63,25 @@ export default function Reminder() {
                     if (status === 'taken') {
                         stopAlert();
                         router.replace('/(tabs)');
+                    }
+                }
+            });
+
+            // Listen to Realtime Database as well, in case hardware marks it and index.tsx isn't mounted
+            const rtdbRef = ref(db_realtime, `medicines_hw/${user.uid}/${medId}`);
+            unsubscribeRtdb = onValue(rtdbRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    if (data.status === 'taken' && data.updatedAt) {
+                        const today = new Date();
+                        const todayStrLocal = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                        const updatedObj = new Date(data.updatedAt);
+                        const updatedLocalStr = `${updatedObj.getFullYear()}-${String(updatedObj.getMonth() + 1).padStart(2, '0')}-${String(updatedObj.getDate()).padStart(2, '0')}`;
+                        
+                        if (updatedLocalStr === todayStrLocal) {
+                            stopAlert();
+                            router.replace('/(tabs)');
+                        }
                     }
                 }
             });
@@ -104,6 +125,7 @@ export default function Reminder() {
         return () => {
             stopAlert();
             unsubscribe();
+            unsubscribeRtdb();
         };
     }, [medName, medId]);
 

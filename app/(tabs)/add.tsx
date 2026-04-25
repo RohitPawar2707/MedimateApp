@@ -54,28 +54,10 @@ export default function AddMedicine() {
             trigger.setDate(trigger.getDate() + 1);
         }
 
-        const preTrigger = new Date(trigger);
-        preTrigger.setMinutes(preTrigger.getMinutes() - 5);
-        preTrigger.setSeconds(0);
-        preTrigger.setMilliseconds(0);
-
         let notificationId = null;
         let preNotificationId = null;
 
         try {
-            if (preTrigger > new Date()) {
-                preNotificationId = await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: 'Upcoming Medicine ⏳',
-                        body: `Reminder: You have ${medNames} in 5 minutes.`,
-                        data: { medId, medName: medNames, isPre: 'true' },
-                        categoryIdentifier: 'med_reminder',
-                        priority: Notifications.AndroidNotificationPriority.HIGH,
-                    },
-                    trigger: { type: 'date', date: preTrigger, channelId: 'medication-alarm' } as any,
-                });
-            }
-
             notificationId = await Notifications.scheduleNotificationAsync({
                 content: {
                     title: 'Time for Medicine! 💊',

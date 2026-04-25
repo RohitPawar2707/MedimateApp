@@ -6,8 +6,10 @@ import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db, auth } from '../firebaseConfig';
+import { db, auth, db_realtime } from '../firebaseConfig';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { ref, onValue } from 'firebase/database';
+import { onAuthStateChanged } from 'firebase/auth';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -202,9 +204,63 @@ function RootLayoutContent() {
       }
     });
 
+    // --- LIVE RTDB TIME CHECKER ---
+    let rtdbMeds: any = {};
+    let lastAlerted: Record<string, string> = {};
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+        if (user) {
+            const medsRef = ref(db_realtime, `medicines_hw/${user.uid}`);
+            onValue(medsRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    rtdbMeds = snapshot.val();
+                } else {
+                    rtdbMeds = {};
+                }
+            });
+        } else {
+            rtdbMeds = {};
+        }
+    });
+
+    const timeChecker = setInterval(() => {
+        const now = new Date();
+        const time24 = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        Object.keys(rtdbMeds).forEach(medId => {
+            const med = rtdbMeds[medId];
+            if (med.time24 === time24 && med.status !== 'taken') {
+                if (lastAlerted[medId] !== time24) {
+                    lastAlerted[medId] = time24;
+                    
+                    checkIfTaken(medId).then(isTaken => {
+                        if (!isTaken) {
+                            console.log(`Live RTDB Check: Time matched for ${med.name}. Triggering alert!`);
+                            if (router.canGoBack()) {
+                                try { router.dismissAll(); } catch (e) {}
+                            }
+                            router.replace({
+                                pathname: '/reminder',
+                                params: {
+                                    medId: medId,
+                                    medName: med.name,
+                                    time: med.time24,
+                                    isNag: 'false',
+                                    isPre: 'false'
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        });
+    }, 1000);
+
     return () => {
       responseSubscription.remove();
       foregroundSubscription.remove();
+      unsubscribeAuth();
+      clearInterval(timeChecker);
     };
   }, []);
 
